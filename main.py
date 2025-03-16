@@ -1,19 +1,6 @@
 import logging
 import os
-import signal
-from telegram.ext import (
-    Updater, CommandHandler, CallbackQueryHandler,
-    MessageHandler, Filters, ConversationHandler
-)
-from telegram.error import Conflict, TelegramError
-from handlers import (
-    start, button_handler, text_handler, cancel,
-    TOPIC, AUDIENCE, MONETIZATION, PRODUCT_DETAILS,
-    PREFERENCES, STYLE, EMOTIONS, EXAMPLES, POST_NUMBER,
-    SUBSCRIPTION_CHECK
-)
-from database import init_db
-from utils import setup_logging
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 
 # Set up logging with more details
 logging.basicConfig(
@@ -22,45 +9,45 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-def debug_start(update, context):
-    """Debug start command handler"""
-    logger.info("Debug start command received")
+def test_start(update, context):
+    """Test start command handler"""
+    logger.info("============ TEST COMMAND RECEIVED ============")
     logger.info(f"Update: {update}")
     logger.info(f"Message: {update.message}")
     logger.info(f"User: {update.effective_user}")
-    update.message.reply_text("Debug start command received. Check logs for details.")
+    logger.info(f"Chat ID: {update.effective_chat.id}")
+    logger.info("=============================================")
 
-def test_start(update, context):
-    """Test start command handler"""
-    logger.info("Test start command received")
-    update.message.reply_text("Test start command received")
+    try:
+        update.message.reply_text("Тестовая команда получена")
+        logger.info("Reply sent successfully")
+    except Exception as e:
+        logger.error(f"Error sending reply: {e}", exc_info=True)
 
-def message_handler(update, context):
-    """Log all incoming messages"""
-    logger.info("============ NEW MESSAGE ============")
-    logger.info(f"Received message: {update.message.text if update.message else 'No message'}")
+def log_all_updates(update, context):
+    """Log all updates from Telegram"""
+    logger.info("============ NEW UPDATE RECEIVED ============")
     logger.info(f"Update type: {update.effective_message.type if update.effective_message else 'Unknown'}")
-    logger.info(f"From user: {update.effective_user}")
-    logger.info(f"Chat type: {update.message.chat.type if update.message else 'Unknown'}")
-    logger.info("====================================")
+    logger.info(f"Update ID: {update.update_id}")
+    logger.info(f"Message: {update.message}")
+    logger.info(f"User: {update.effective_user}")
+    logger.info("===========================================")
 
-def stop_bot(updater):
-    """Stop the bot gracefully."""
-    if updater:
-        logger.info("Stopping bot...")
-        updater.stop()
-        updater.is_idle = False
+    # Try to send a response to show the bot is working
+    try:
+        if update.message and update.message.text:
+            update.message.reply_text(f"Получено сообщение: {update.message.text}")
+            logger.info("Successfully sent reply to message")
+    except Exception as e:
+        logger.error(f"Error replying to message: {e}", exc_info=True)
 
 def error_handler(update, context):
     """Log Errors caused by Updates."""
-    if isinstance(context.error, Conflict):
-        logger.error("Conflict error: Multiple bot instances detected")
-        if hasattr(context, 'bot_data') and 'updater' in context.bot_data:
-            stop_bot(context.bot_data['updater'])
-    elif isinstance(context.error, TelegramError):
-        logger.error(f"Telegram error: {context.error}")
-    else:
-        logger.error('Update "%s" caused error "%s"', update, context.error, exc_info=True)
+    logger.error(f"============ ERROR OCCURRED ============")
+    logger.error(f"Update: {update}")
+    logger.error(f"Error: {context.error}")
+    logger.error("========================================")
+    logger.error('Update "%s" caused error "%s"', update, context.error, exc_info=True)
 
 def main():
     """Start the bot."""
@@ -71,48 +58,41 @@ def main():
             logger.error("Telegram bot token not found!")
             return
 
-        # Initialize database
-        init_db()
-        logger.info("Database initialized")
+        # Log token validation (without exposing the actual token)
+        logger.info(f"Token loaded, length: {len(TOKEN)}")
+        logger.info("Initializing bot with token...")
 
         # Create the Updater and pass it your bot's token
         updater = Updater(token=TOKEN, use_context=True)
         dispatcher = updater.dispatcher
         logger.info("Bot dispatcher initialized")
 
-        # Store updater in bot_data for access in error handler
-        dispatcher.bot_data['updater'] = updater
+        # Verify bot identity
+        me = updater.bot.get_me()
+        logger.info(f"Bot identity verified: @{me.username}")
 
-        # Add error handler
+        # Add error handler first
         dispatcher.add_error_handler(error_handler)
+        logger.info("Error handler added")
 
-        # Add message handler to log all incoming messages FIRST
-        message_logging_handler = MessageHandler(
-            Filters.all & ~Filters.command,
-            message_handler
-        )
-        dispatcher.add_handler(message_logging_handler, group=1)
-        logger.info("Message handler added")
+        # Add a general update handler to log everything in group 1
+        # This ensures it runs after command handlers but captures all updates
+        dispatcher.add_handler(MessageHandler(Filters.all & ~Filters.command, log_all_updates), group=1)
+        logger.info("Update logging handler added")
 
-        # Add debug command handlers
-        dispatcher.add_handler(CommandHandler('debug_start', debug_start))
+        # Add command handlers in group 0 (default)
         dispatcher.add_handler(CommandHandler('test', test_start))
-        dispatcher.add_handler(CommandHandler('start', debug_start))
+        dispatcher.add_handler(CommandHandler('start', test_start))  # Using test_start for both commands
         logger.info("Command handlers added")
 
         # Start the Bot with drop_pending_updates to avoid conflicts
         logger.info("Bot starting...")
+        logger.info("Initializing polling...")
         updater.start_polling(drop_pending_updates=True)
         logger.info("Bot started successfully!")
+        logger.info("Long polling started, waiting for messages...")
 
-        # Handle graceful shutdown
-        def signal_handler(signum, frame):
-            logger.info("Received shutdown signal")
-            stop_bot(updater)
-
-        signal.signal(signal.SIGINT, signal_handler)
-        signal.signal(signal.SIGTERM, signal_handler)
-
+        # Keep the bot running
         updater.idle()
 
     except Exception as e:
