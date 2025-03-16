@@ -1,4 +1,3 @@
-
 from app import app
 from main import run_telegram_bot
 import threading
@@ -9,6 +8,20 @@ import os
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+_bot_thread = None
+
+def start_bot():
+    global _bot_thread
+    if _bot_thread is None or not _bot_thread.is_alive():
+        try:
+            logger.info("Starting Telegram bot thread")
+            _bot_thread = threading.Thread(target=run_telegram_bot)
+            _bot_thread.daemon = True
+            _bot_thread.start()
+            logger.info("Telegram bot thread started successfully")
+        except Exception as e:
+            logger.error(f"Failed to start Telegram bot thread: {e}", exc_info=True)
+
 def check_required_vars():
     required_vars = ["TELEGRAM_BOT_TOKEN", "OPENAI_API_KEY", "SESSION_SECRET"]
     missing_vars = [var for var in required_vars if not os.getenv(var)]
@@ -17,16 +30,10 @@ def check_required_vars():
         return False
     return True
 
-# Start Telegram bot in a separate thread when running in production
-if __name__ != "__main__" and check_required_vars():  
-    try:
-        logger.info("Starting Telegram bot thread")
-        bot_thread = threading.Thread(target=run_telegram_bot)
-        bot_thread.daemon = True
-        bot_thread.start()
-        logger.info("Telegram bot thread started successfully")
-    except Exception as e:
-        logger.error(f"Failed to start Telegram bot thread: {e}", exc_info=True)
+# Start bot only once when running via gunicorn
+if __name__ != "__main__":
+    if check_required_vars():
+        start_bot()
 
 if __name__ == "__main__":
     if check_required_vars():

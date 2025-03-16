@@ -5,11 +5,11 @@ channel = "stable-24_05"
 
 [deployment]
 deploymentTarget = "gce"
-run = ["sh", "-c", "gunicorn --bind 0.0.0.0:5000 wsgi:app"]
+run = ["sh", "-c", "gunicorn --bind 0.0.0.0:5000 wsgi:app --timeout 120"]
 ignorePorts = true
 
 [workflows]
-runButton = "Production"
+runButton = "Development"
 
 [[workflows.workflow]]
 name = "Project"
@@ -70,6 +70,15 @@ mode = "sequential"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "gunicorn --bind 0.0.0.0:5000 wsgi:app"
+
+[[workflows.workflow]]
+name = "Development"
+author = 39687413
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "gunicorn --bind 0.0.0.0:5000 --reload wsgi:app"
 
 [[ports]]
 localPort = 5000
