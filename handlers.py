@@ -3,23 +3,97 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CallbackContext, ConversationHandler
 from database import save_user_data, get_user_data
 from prompts import generate_content_plan, generate_post
-from utils import create_monetization_keyboard, create_style_keyboard
+from utils import (
+    create_monetization_keyboard, create_style_keyboard,
+    create_subscription_keyboard, check_subscription
+)
 
 logger = logging.getLogger(__name__)
 
 # Conversation states
-TOPIC, AUDIENCE, MONETIZATION, PRODUCT_DETAILS, PREFERENCES, STYLE, EMOTIONS, EXAMPLES, POST_NUMBER = range(9)
+(SUBSCRIPTION_CHECK, TOPIC, AUDIENCE, MONETIZATION, PRODUCT_DETAILS, 
+ PREFERENCES, STYLE, EMOTIONS, EXAMPLES, POST_NUMBER) = range(10)
 
-def start(update: Update, context: CallbackContext) -> int:
-    """Start the conversation and ask for channel topic."""
+async def start(update: Update, context: CallbackContext) -> int:
+    """Start the conversation and check subscription."""
+    is_subscribed = await check_subscription(context, update.effective_user.id)
+
+    if not is_subscribed:
+        update.message.reply_text(
+            "👋 Для использования бота необходимо подписаться на канал @expert_buyanov",
+            reply_markup=create_subscription_keyboard()
+        )
+        return SUBSCRIPTION_CHECK
+
+    return start_work(update, context)
+
+def start_work(update: Update, context: CallbackContext) -> int:
+    """Start the work after subscription check."""
     keyboard = [[InlineKeyboardButton("Начать работу", callback_data='start_work')]]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    update.message.reply_text(
+    message = update.message or update.callback_query.message
+    message.reply_text(
         "Добро пожаловать! Я помогу вам создать engaging посты для вашего Telegram канала.",
         reply_markup=reply_markup
     )
     return TOPIC
+
+async def button_handler(update: Update, context: CallbackContext) -> int:
+    """Handle button clicks during conversation."""
+    query = update.callback_query
+    query.answer()
+
+    logger.info(f"Button pressed: {query.data}")
+    logger.info(f"Current user_data: {context.user_data}")
+    logger.info(f"Current waiting_for: {context.user_data.get('waiting_for')}")
+
+    if query.data == 'check_subscription':
+        is_subscribed = await check_subscription(context, update.effective_user.id)
+        if is_subscribed:
+            return start_work(update, context)
+        else:
+            query.message.reply_text(
+                "❌ Вы все еще не подписаны на канал @expert_buyanov\n"
+                "Подпишитесь и нажмите кнопку проверки ещё раз.",
+                reply_markup=create_subscription_keyboard()
+            )
+            return SUBSCRIPTION_CHECK
+
+    if query.data == 'start_work':
+        query.message.reply_text("Какая тема вашего канала?")
+        context.user_data.clear()  # Clear previous data
+        context.user_data['waiting_for'] = 'topic'
+        return TOPIC
+
+    if query.data == 'new_plan':
+        query.message.reply_text("Какая тема вашего канала?")
+        context.user_data.clear()  # Clear previous data
+        context.user_data['waiting_for'] = 'topic'
+        return TOPIC
+
+    if query.data in ['advertising', 'products', 'services', 'consulting']:
+        context.user_data['monetization'] = query.data
+        if query.data != 'advertising':
+            query.message.reply_text("Опишите ваш продукт/услугу/курс подробнее:")
+            context.user_data['waiting_for'] = 'product_details'
+            return PRODUCT_DETAILS
+        else:
+            query.message.reply_text("Какие у вас есть дополнительные пожелания к контенту?")
+            context.user_data['waiting_for'] = 'preferences'
+            return PREFERENCES
+
+    if query.data in ['aggressive', 'business', 'humorous', 'custom']:
+        context.user_data['style'] = query.data
+        if query.data == 'custom':
+            query.message.reply_text("Опишите ваш стиль:")
+            context.user_data['waiting_for'] = 'custom_style'
+            return STYLE
+        query.message.reply_text("Какие эмоции должен вызывать контент у аудитории?")
+        context.user_data['waiting_for'] = 'emotions'
+        return EMOTIONS
+
+    return process_examples(update, context)
 
 def process_examples(update: Update, context: CallbackContext) -> int:
     """Process collected examples and generate content plan."""
@@ -75,50 +149,6 @@ def process_examples(update: Update, context: CallbackContext) -> int:
             "Попробуйте еще раз позже."
         )
         return ConversationHandler.END
-
-def button_handler(update: Update, context: CallbackContext) -> int:
-    """Handle button clicks during conversation."""
-    query = update.callback_query
-    query.answer()
-
-    logger.info(f"Button pressed: {query.data}")
-    logger.info(f"Current user_data: {context.user_data}")
-    logger.info(f"Current waiting_for: {context.user_data.get('waiting_for')}")
-
-    if query.data == 'start_work':
-        query.message.reply_text("Какая тема вашего канала?")
-        context.user_data.clear()  # Clear previous data
-        context.user_data['waiting_for'] = 'topic'
-        return TOPIC
-
-    if query.data == 'new_plan':
-        query.message.reply_text("Какая тема вашего канала?")
-        context.user_data.clear()  # Clear previous data
-        context.user_data['waiting_for'] = 'topic'
-        return TOPIC
-
-    if query.data in ['advertising', 'products', 'services', 'consulting']:
-        context.user_data['monetization'] = query.data
-        if query.data != 'advertising':
-            query.message.reply_text("Опишите ваш продукт/услугу/курс подробнее:")
-            context.user_data['waiting_for'] = 'product_details'
-            return PRODUCT_DETAILS
-        else:
-            query.message.reply_text("Какие у вас есть дополнительные пожелания к контенту?")
-            context.user_data['waiting_for'] = 'preferences'
-            return PREFERENCES
-
-    if query.data in ['aggressive', 'business', 'humorous', 'custom']:
-        context.user_data['style'] = query.data
-        if query.data == 'custom':
-            query.message.reply_text("Опишите ваш стиль:")
-            context.user_data['waiting_for'] = 'custom_style'
-            return STYLE
-        query.message.reply_text("Какие эмоции должен вызывать контент у аудитории?")
-        context.user_data['waiting_for'] = 'emotions'
-        return EMOTIONS
-
-    return process_examples(update, context)
 
 def text_handler(update: Update, context: CallbackContext) -> int:
     """Handle text input during conversation."""

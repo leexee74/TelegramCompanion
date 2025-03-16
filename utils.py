@@ -1,5 +1,6 @@
 import logging
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ChatMember
+from telegram.ext import CallbackContext
 from typing import List
 
 def setup_logging():
@@ -30,9 +31,24 @@ def create_style_keyboard() -> List[List[InlineKeyboardButton]]:
 def format_post(post: str) -> str:
     """Format the post text with proper Telegram markdown."""
     # Replace common markdown characters
-    post = post.replace('*', '\\*')
-    post = post.replace('_', '\\_')
+    post = post.replace('*', '\\_')
     post = post.replace('`', '\\`')
     post = post.replace('[', '\\[')
 
     return post
+
+def create_subscription_keyboard() -> InlineKeyboardMarkup:
+    """Create keyboard with subscription button."""
+    return InlineKeyboardMarkup([[
+        InlineKeyboardButton("📢 Подписаться на канал", url="https://t.me/expert_buyanov"),
+        InlineKeyboardButton("✅ Я подписался", callback_data='check_subscription')
+    ]])
+
+async def check_subscription(context: CallbackContext, user_id: int) -> bool:
+    """Check if user is subscribed to the required channel."""
+    try:
+        member = await context.bot.get_chat_member(chat_id="@expert_buyanov", user_id=user_id)
+        return member.status in [ChatMember.MEMBER, ChatMember.ADMINISTRATOR, ChatMember.CREATOR]
+    except Exception as e:
+        logging.error(f"Error checking subscription: {e}")
+        return False

@@ -6,7 +6,7 @@ from telegram.ext import (
     MessageHandler, Filters, ConversationHandler
 )
 from telegram.error import Conflict, TelegramError
-from handlers import start, button_handler, text_handler, cancel, TOPIC, AUDIENCE, MONETIZATION, PRODUCT_DETAILS, PREFERENCES, STYLE, EMOTIONS, EXAMPLES, POST_NUMBER
+from handlers import start, button_handler, text_handler, cancel, TOPIC, AUDIENCE, MONETIZATION, PRODUCT_DETAILS, PREFERENCES, STYLE, EMOTIONS, EXAMPLES, POST_NUMBER, SUBSCRIPTION_CHECK
 from database import init_db
 from utils import setup_logging
 
@@ -58,6 +58,9 @@ def main():
         conv_handler = ConversationHandler(
             entry_points=[CommandHandler('start', start)],
             states={
+                SUBSCRIPTION_CHECK: [
+                    CallbackQueryHandler(button_handler)
+                ],
                 TOPIC: [
                     CallbackQueryHandler(button_handler),
                     MessageHandler(Filters.text & ~Filters.command, text_handler)
