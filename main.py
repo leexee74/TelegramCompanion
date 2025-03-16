@@ -4,7 +4,7 @@ from telegram.ext import (
     Updater, CommandHandler, CallbackQueryHandler,
     MessageHandler, Filters, ConversationHandler
 )
-from telegram.error import Conflict
+from telegram.error import Conflict, TelegramError
 from handlers import start, button_handler, text_handler, cancel
 from database import init_db
 from utils import setup_logging
@@ -15,9 +15,12 @@ logger = logging.getLogger(__name__)
 
 def error_handler(update, context):
     """Log Errors caused by Updates."""
-    logger.warning('Update "%s" caused error "%s"', update, context.error)
     if isinstance(context.error, Conflict):
         logger.error("Conflict error: Multiple bot instances detected")
+    elif isinstance(context.error, TelegramError):
+        logger.error(f"Telegram error: {context.error}")
+    else:
+        logger.warning('Update "%s" caused error "%s"', update, context.error)
 
 def main():
     # Initialize the bot
@@ -29,60 +32,65 @@ def main():
     # Initialize database
     init_db()
 
-    # Create the Updater and pass it your bot's token.
-    updater = Updater(token=TOKEN, use_context=True)
-    dispatcher = updater.dispatcher
+    try:
+        # Create the Updater and pass it your bot's token.
+        updater = Updater(token=TOKEN, use_context=True)
+        dispatcher = updater.dispatcher
 
-    # Add error handler
-    dispatcher.add_error_handler(error_handler)
+        # Add error handler
+        dispatcher.add_error_handler(error_handler)
 
-    # Define conversation states
-    TOPIC, AUDIENCE, MONETIZATION, PRODUCT_DETAILS, PREFERENCES, STYLE, EMOTIONS, EXAMPLES = range(8)
+        # Define conversation states
+        TOPIC, AUDIENCE, MONETIZATION, PRODUCT_DETAILS, PREFERENCES, STYLE, EMOTIONS, EXAMPLES = range(8)
 
-    # Create conversation handler with proper state management
-    conv_handler = ConversationHandler(
-        entry_points=[CommandHandler('start', start)],
-        states={
-            TOPIC: [
-                CallbackQueryHandler(button_handler),
-                MessageHandler(Filters.text & ~Filters.command, text_handler)
-            ],
-            AUDIENCE: [
-                MessageHandler(Filters.text & ~Filters.command, text_handler)
-            ],
-            MONETIZATION: [
-                CallbackQueryHandler(button_handler)
-            ],
-            PRODUCT_DETAILS: [
-                MessageHandler(Filters.text & ~Filters.command, text_handler)
-            ],
-            PREFERENCES: [
-                MessageHandler(Filters.text & ~Filters.command, text_handler)
-            ],
-            STYLE: [
-                CallbackQueryHandler(button_handler),
-                MessageHandler(Filters.text & ~Filters.command, text_handler)
-            ],
-            EMOTIONS: [
-                MessageHandler(Filters.text & ~Filters.command, text_handler)
-            ],
-            EXAMPLES: [
-                CallbackQueryHandler(button_handler),
-                MessageHandler(Filters.text & ~Filters.command, text_handler)
-            ],
-        },
-        fallbacks=[CommandHandler('cancel', cancel)],
-        allow_reentry=True
-    )
+        # Create conversation handler with proper state management
+        conv_handler = ConversationHandler(
+            entry_points=[CommandHandler('start', start)],
+            states={
+                TOPIC: [
+                    CallbackQueryHandler(button_handler),
+                    MessageHandler(Filters.text & ~Filters.command, text_handler)
+                ],
+                AUDIENCE: [
+                    MessageHandler(Filters.text & ~Filters.command, text_handler)
+                ],
+                MONETIZATION: [
+                    CallbackQueryHandler(button_handler)
+                ],
+                PRODUCT_DETAILS: [
+                    MessageHandler(Filters.text & ~Filters.command, text_handler)
+                ],
+                PREFERENCES: [
+                    MessageHandler(Filters.text & ~Filters.command, text_handler)
+                ],
+                STYLE: [
+                    CallbackQueryHandler(button_handler),
+                    MessageHandler(Filters.text & ~Filters.command, text_handler)
+                ],
+                EMOTIONS: [
+                    MessageHandler(Filters.text & ~Filters.command, text_handler)
+                ],
+                EXAMPLES: [
+                    CallbackQueryHandler(button_handler),
+                    MessageHandler(Filters.text & ~Filters.command, text_handler)
+                ],
+            },
+            fallbacks=[CommandHandler('cancel', cancel)],
+            allow_reentry=True
+        )
 
-    # Add handler to dispatcher
-    dispatcher.add_handler(conv_handler)
+        # Add handler to dispatcher
+        dispatcher.add_handler(conv_handler)
 
-    # Start the Bot
-    logger.info("Bot starting...")
-    updater.start_polling()
-    logger.info("Bot started successfully!")
-    updater.idle()
+        # Start the Bot
+        logger.info("Bot starting...")
+        updater.start_polling()
+        logger.info("Bot started successfully!")
+        updater.idle()
+
+    except Exception as e:
+        logger.error(f"Fatal error: {e}")
+        raise
 
 if __name__ == '__main__':
     main()

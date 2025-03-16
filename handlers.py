@@ -115,7 +115,6 @@ def button_handler(update: Update, context: CallbackContext) -> int:
                     InlineKeyboardButton("Готово", callback_data='finish_examples')
                 ]])
             )
-            context.user_data['waiting_for'] = 'examples'
             return EXAMPLES
         else:
             return process_examples(update, context)
@@ -132,11 +131,43 @@ def text_handler(update: Update, context: CallbackContext) -> int:
     logger.info(f"Received text: {text}")
     logger.info(f"Current waiting_for: {context.user_data.get('waiting_for')}")
 
-    if not hasattr(context, 'user_data'):
-        context.user_data = {}
+    if context.user_data.get('waiting_for') == 'examples':
+        logger.info(f"Processing example post #{len(context.user_data.get('examples', []))}")
+        # Add the example to the list
+        if 'examples' not in context.user_data:
+            context.user_data['examples'] = []
+        context.user_data['examples'].append(text)
 
-    # Handle different states
-    if context.user_data.get('waiting_for') == 'topic':
+        # Show confirmation and buttons
+        keyboard = [[
+            InlineKeyboardButton("Еще пример поста", callback_data='continue_after_example'),
+            InlineKeyboardButton("Готово", callback_data='finish_examples')
+        ]]
+        update.message.reply_text(
+            f"✅ Пример поста #{len(context.user_data['examples'])} получен!\n\n"
+            "Отправьте еще один пример поста или нажмите 'Готово', "
+            "если хотите продолжить.",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        return EXAMPLES
+
+    elif context.user_data.get('waiting_for') == 'emotions':
+        context.user_data['emotions'] = text
+        context.user_data['examples'] = []  # Initialize empty list for examples
+        keyboard = [[
+            InlineKeyboardButton("Еще пример поста", callback_data='continue_after_example'),
+            InlineKeyboardButton("Готово", callback_data='finish_examples')
+        ]]
+        update.message.reply_text(
+            "Отправьте пример поста, который вам нравится.\n"
+            "После отправки поста нажмите 'Еще пример поста' для отправки следующего примера\n"
+            "или 'Готово', если хотите продолжить.",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        context.user_data['waiting_for'] = 'examples'
+        return EXAMPLES
+
+    elif context.user_data.get('waiting_for') == 'topic':
         context.user_data['topic'] = text
         update.message.reply_text("Опишите вашу целевую аудиторию:")
         context.user_data['waiting_for'] = 'audience'
@@ -165,42 +196,6 @@ def text_handler(update: Update, context: CallbackContext) -> int:
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
         return STYLE
-
-    elif context.user_data.get('waiting_for') == 'emotions':
-        context.user_data['emotions'] = text
-        context.user_data['examples'] = []  # Initialize empty list for examples
-        keyboard = [[
-            InlineKeyboardButton("Еще пример поста", callback_data='continue_after_example'),
-            InlineKeyboardButton("Готово", callback_data='finish_examples')
-        ]]
-        update.message.reply_text(
-            "Отправьте пример поста, который вам нравится.\n"
-            "После отправки поста можно отправить еще пример или нажать 'Готово', "
-            "если примеров достаточно.",
-            reply_markup=InlineKeyboardMarkup(keyboard)
-        )
-        context.user_data['waiting_for'] = 'examples'
-        return EXAMPLES
-
-    elif context.user_data.get('waiting_for') == 'examples':
-        logger.info(f"Handling example post. Examples so far: {len(context.user_data.get('examples', []))}")
-        # Add the example to the list
-        if 'examples' not in context.user_data:
-            context.user_data['examples'] = []
-        context.user_data['examples'].append(text)
-
-        # Show confirmation and buttons
-        keyboard = [[
-            InlineKeyboardButton("Еще пример поста", callback_data='continue_after_example'),
-            InlineKeyboardButton("Готово", callback_data='finish_examples')
-        ]]
-        update.message.reply_text(
-            f"✅ Пример #{len(context.user_data['examples'])} получен!\n\n"
-            "Можете отправить еще один пример поста или нажать 'Готово', "
-            "если примеров достаточно.",
-            reply_markup=InlineKeyboardMarkup(keyboard)
-        )
-        return EXAMPLES
 
     elif context.user_data.get('waiting_for') == 'custom_style':
         context.user_data['style'] = text
