@@ -26,10 +26,6 @@ def process_examples(update: Update, context: CallbackContext) -> int:
     try:
         logger.info("Processing examples with data: %s", context.user_data)
 
-        # Combine all examples into one string
-        examples_text = "\n---\n".join(context.user_data.get('examples', []))
-        context.user_data['examples'] = examples_text
-
         # Show processing message
         message = update.callback_query.message if update.callback_query else update.message
         message.reply_text("🔄 Генерирую контент-план на 14 дней...")
@@ -37,13 +33,15 @@ def process_examples(update: Update, context: CallbackContext) -> int:
         # Generate and save content plan
         logger.info("Generating content plan...")
         content_plan = generate_content_plan(context.user_data)
+        logger.info(f"Generated content plan: {content_plan}")
+
         context.user_data['content_plan'] = content_plan
+        save_user_data(update.effective_chat.id, context.user_data)
+        logger.info("Saved content plan to database")
 
         # Format and display content plan
         formatted_plan = "📋 Контент-план на 14 дней:\n\n"
-        for i, post in enumerate(content_plan.split('\n\n'), 1):
-            if post.strip():
-                formatted_plan += f"{i}. {post}\n\n"
+        formatted_plan += content_plan
 
         # Split long message if needed
         if len(formatted_plan) > 4000:
@@ -66,8 +64,7 @@ def process_examples(update: Update, context: CallbackContext) -> int:
         # Set state for post number input
         context.user_data['waiting_for'] = 'post_number'
         save_user_data(update.effective_chat.id, context.user_data)
-
-        logger.info("Entering post number input state")
+        logger.info("Entering post number input state with data: %s", context.user_data)
         return POST_NUMBER
 
     except Exception as e:
@@ -90,6 +87,7 @@ def button_handler(update: Update, context: CallbackContext) -> int:
 
     if query.data == 'start_work':
         query.message.reply_text("Какая тема вашего канала?")
+        context.user_data.clear()  # Clear previous data
         context.user_data['waiting_for'] = 'topic'
         return TOPIC
 
@@ -120,7 +118,7 @@ def button_handler(update: Update, context: CallbackContext) -> int:
         context.user_data['waiting_for'] = 'emotions'
         return EMOTIONS
 
-    return ConversationHandler.END
+    return process_examples(update, context)
 
 def text_handler(update: Update, context: CallbackContext) -> int:
     """Handle text input during conversation."""
@@ -130,27 +128,50 @@ def text_handler(update: Update, context: CallbackContext) -> int:
     logger.info(f"Current user_data: {context.user_data}")
 
     if context.user_data.get('waiting_for') == 'post_number':
+        logger.info("Processing post number input")
         try:
             post_number = int(text)
+            logger.info(f"Attempting to generate post #{post_number}")
+
             if 1 <= post_number <= 14:
-                update.message.reply_text("🔄 Генерирую пост...")
+                # Send immediate confirmation
+                message = update.message.reply_text(f"🔄 Получено число {post_number}, генерирую пост...")
+
                 try:
-                    generated_post = generate_post(context.user_data, post_number)
+                    # Get saved user data
+                    user_data = get_user_data(update.effective_chat.id)
+                    logger.info(f"Retrieved user data from database: {user_data}")
+
+                    if not user_data or 'content_plan' not in user_data:
+                        logger.error("No content plan found in user data")
+                        update.message.reply_text(
+                            "❌ Ошибка: контент-план не найден. Пожалуйста, начните заново с команды /start"
+                        )
+                        return ConversationHandler.END
+
+                    # Generate post
+                    logger.info("Calling generate_post function")
+                    generated_post = generate_post(user_data, post_number)
+                    logger.info(f"Successfully generated post #{post_number}")
+
+                    # Send response
                     update.message.reply_text(
                         f"✨ Готово! Вот ваш пост #{post_number}:\n\n{generated_post}\n\n"
                         "Чтобы сгенерировать другой пост, введите его номер (1-14):",
                         reply_markup=InlineKeyboardMarkup([[
                             InlineKeyboardButton("🔄 Сгенерировать новый контент-план", 
-                                               callback_data='new_plan')
+                                             callback_data='new_plan')
                         ]])
                     )
+                    return POST_NUMBER
+
                 except Exception as e:
                     logger.error(f"Error generating post: {e}")
                     update.message.reply_text(
                         "❌ Произошла ошибка при генерации поста. "
                         "Пожалуйста, попробуйте еще раз или выберите другой номер поста."
                     )
-                return POST_NUMBER
+                    return POST_NUMBER
             else:
                 update.message.reply_text(
                     "❌ Пожалуйста, введите число от 1 до 14."
@@ -200,39 +221,7 @@ def text_handler(update: Update, context: CallbackContext) -> int:
 
     elif context.user_data.get('waiting_for') == 'emotions':
         context.user_data['emotions'] = text
-        context.user_data['examples'] = []  # Initialize empty list for examples
-        keyboard = [[
-            InlineKeyboardButton("Еще пример поста", callback_data='continue_after_example'),
-            InlineKeyboardButton("Готово", callback_data='finish_examples')
-        ]]
-        update.message.reply_text(
-            "Отправьте пример поста, который вам нравится.\n"
-            "После отправки поста нажмите 'Еще пример поста' для отправки следующего примера\n"
-            "или 'Готово', если хотите продолжить.",
-            reply_markup=InlineKeyboardMarkup(keyboard)
-        )
-        context.user_data['waiting_for'] = 'examples'
-        return EXAMPLES
-
-    elif context.user_data.get('waiting_for') == 'examples':
-        logger.info(f"Processing example post #{len(context.user_data.get('examples', []))}")
-        # Add the example to the list
-        if 'examples' not in context.user_data:
-            context.user_data['examples'] = []
-        context.user_data['examples'].append(text)
-
-        # Show confirmation and buttons
-        keyboard = [[
-            InlineKeyboardButton("Еще пример поста", callback_data='continue_after_example'),
-            InlineKeyboardButton("Готово", callback_data='finish_examples')
-        ]]
-        update.message.reply_text(
-            f"✅ Пример поста #{len(context.user_data['examples'])} получен!\n\n"
-            "Отправьте еще один пример поста или нажмите 'Готово', "
-            "если хотите продолжить.",
-            reply_markup=InlineKeyboardMarkup(keyboard)
-        )
-        return EXAMPLES
+        return process_examples(update, context)
 
     return ConversationHandler.END
 

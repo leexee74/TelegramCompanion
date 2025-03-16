@@ -1,11 +1,12 @@
 import logging
 import os
+import signal
 from telegram.ext import (
     Updater, CommandHandler, CallbackQueryHandler,
     MessageHandler, Filters, ConversationHandler
 )
 from telegram.error import Conflict, TelegramError
-from handlers import start, button_handler, text_handler, cancel
+from handlers import start, button_handler, text_handler, cancel, TOPIC, AUDIENCE, MONETIZATION, PRODUCT_DETAILS, PREFERENCES, STYLE, EMOTIONS, EXAMPLES, POST_NUMBER
 from database import init_db
 from utils import setup_logging
 
@@ -13,10 +14,20 @@ from utils import setup_logging
 setup_logging()
 logger = logging.getLogger(__name__)
 
+def stop_bot(updater):
+    """Stop the bot gracefully."""
+    if updater:
+        logger.info("Stopping bot...")
+        updater.stop()
+        updater.is_idle = False
+
 def error_handler(update, context):
     """Log Errors caused by Updates."""
     if isinstance(context.error, Conflict):
         logger.error("Conflict error: Multiple bot instances detected")
+        # Stop this instance if a conflict is detected
+        if hasattr(context, 'bot_data') and 'updater' in context.bot_data:
+            stop_bot(context.bot_data['updater'])
     elif isinstance(context.error, TelegramError):
         logger.error(f"Telegram error: {context.error}")
     else:
@@ -37,12 +48,11 @@ def main():
         updater = Updater(token=TOKEN, use_context=True)
         dispatcher = updater.dispatcher
 
+        # Store updater in bot_data for access in error handler
+        dispatcher.bot_data['updater'] = updater
+
         # Add error handler
         dispatcher.add_error_handler(error_handler)
-
-        # Define conversation states
-        (TOPIC, AUDIENCE, MONETIZATION, PRODUCT_DETAILS, 
-         PREFERENCES, STYLE, EMOTIONS, EXAMPLES, POST_NUMBER) = range(9)
 
         # Create conversation handler with proper state management
         conv_handler = ConversationHandler(
@@ -91,6 +101,15 @@ def main():
         logger.info("Bot starting...")
         updater.start_polling(drop_pending_updates=True)
         logger.info("Bot started successfully!")
+
+        # Handle graceful shutdown
+        def signal_handler(signum, frame):
+            logger.info("Received shutdown signal")
+            stop_bot(updater)
+
+        signal.signal(signal.SIGINT, signal_handler)
+        signal.signal(signal.SIGTERM, signal_handler)
+
         updater.idle()
 
     except Exception as e:

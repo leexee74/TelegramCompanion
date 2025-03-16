@@ -70,19 +70,22 @@ def generate_content_plan(user_data: Dict[str, Any]) -> str:
         logger.error(f"Error generating content plan: {e}")
         raise
 
-def generate_post(user_data: Dict[str, Any], post_number: int = None) -> str:
+def generate_post(user_data: Dict[str, Any], post_number: int) -> str:
     """Generate a single post using GPT-4."""
     try:
         if not post_number or not (1 <= post_number <= 14):
+            logger.error(f"Invalid post number: {post_number}")
             raise ValueError("Invalid post number")
 
         content_plan = user_data.get('content_plan', '')
         if not content_plan:
+            logger.error("Content plan not found in user data")
             raise ValueError("Content plan not found")
 
         # Extract posts using regex
         logger.info(f"Extracting post #{post_number} from content plan")
         posts = re.findall(r'(🔢 День #(\d+):[^\n]*(?:\n(?!🔢 День #)[^\n]*)*)', content_plan, re.MULTILINE)
+        logger.info(f"Found {len(posts)} posts in content plan")
 
         # Find the target post
         target_post = None
@@ -123,6 +126,7 @@ def generate_post(user_data: Dict[str, Any], post_number: int = None) -> str:
         Ответ должен быть на русском языке.
         """
 
+        logger.info("Sending request to OpenAI for post generation")
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[{"role": "user", "content": prompt}],
@@ -130,7 +134,7 @@ def generate_post(user_data: Dict[str, Any], post_number: int = None) -> str:
         )
 
         post_content = response.choices[0].message.content.strip()
-        logger.info(f"Generated full post #{post_number}")
+        logger.info(f"Successfully generated full post #{post_number}")
         return post_content
 
     except Exception as e:
