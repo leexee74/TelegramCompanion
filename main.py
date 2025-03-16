@@ -89,7 +89,7 @@ def main():
                     MessageHandler(Filters.text & ~Filters.command, text_handler)
                 ],
                 EXAMPLES: [
-                    MessageHandler(Filters.text & ~Filters.command, text_handler),
+                    MessageHandler((Filters.text | Filters.forwarded) & ~Filters.command, text_handler),
                     CallbackQueryHandler(button_handler, pattern='^add_example$'),
                     CallbackQueryHandler(button_handler, pattern='^finish_examples$')
                 ],

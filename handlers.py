@@ -165,17 +165,30 @@ def button_handler(update: Update, context: CallbackContext) -> int:
 def handle_example_post(update: Update, context: CallbackContext) -> int:
     """Handle incoming example posts and show action buttons."""
     try:
-        text = update.message.text
         logger.info("============ HANDLING EXAMPLE POST ============")
-        logger.info(f"Received example post: {text[:50]}...")  # Log first 50 chars
+
+        # Extract text from either forwarded or regular message
+        if update.message.forward_from_chat:
+            # This is a forwarded message from a channel
+            text = update.message.text or update.message.caption or ''
+            source = f"(переслано из {update.message.forward_from_chat.title})"
+            logger.info(f"Received forwarded post from channel: {update.message.forward_from_chat.title}")
+        else:
+            # Regular text message
+            text = update.message.text
+            source = ""
+            logger.info("Received direct text message")
+
+        logger.info(f"Post content: {text[:50]}...")  # Log first 50 chars
 
         # Initialize examples list if it doesn't exist
         if 'examples' not in context.user_data:
             context.user_data['examples'] = []
             logger.info("Initialized examples list")
 
-        # Add the new example
-        context.user_data['examples'].append(text)
+        # Add the new example with source information
+        example = {'text': text, 'source': source}
+        context.user_data['examples'].append(example)
         example_count = len(context.user_data['examples'])
         logger.info(f"Added example post #{example_count}")
 
@@ -188,7 +201,7 @@ def handle_example_post(update: Update, context: CallbackContext) -> int:
 
         # Send response with buttons
         update.message.reply_text(
-            f"👍 Отлично! Пост #{example_count} сохранен.\n"
+            f"👍 Отлично! Пост #{example_count} {source} сохранен.\n"
             "Выберите действие:",
             reply_markup=reply_markup
         )
@@ -333,6 +346,10 @@ def process_examples(update: Update, context: CallbackContext) -> int:
 
         # Show processing message
         update.message.reply_text("🔄 Генерирую контент-план на 14 дней...")
+
+        # Extract text from examples
+        examples_text = [example['text'] for example in context.user_data.get('examples', [])]
+        context.user_data['examples_text'] = examples_text
 
         # Generate and save content plan
         content_plan = generate_content_plan(context.user_data)
