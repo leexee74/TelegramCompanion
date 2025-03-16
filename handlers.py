@@ -36,33 +36,23 @@ def start(update: Update, context: CallbackContext) -> int:
             )
             return SUBSCRIPTION_CHECK
 
-        return start_work(update, context)
+        # Initialize conversation
+        keyboard = [[InlineKeyboardButton("✨ Начать работу", callback_data='start_work')]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        update.message.reply_text(
+            "👋 Добро пожаловать! Я помогу вам создать engaging посты для вашего Telegram канала.\n\n"
+            "Нажмите кнопку ниже, чтобы начать:",
+            reply_markup=reply_markup
+        )
+        # Clear any existing user data
+        context.user_data.clear()
+        logger.info("User data cleared, waiting for start_work button press")
+        return TOPIC
 
     except Exception as e:
         logger.error(f"Error in start command: {e}", exc_info=True)
         update.message.reply_text(
             "❌ Произошла ошибка при запуске бота. Пожалуйста, попробуйте позже."
-        )
-        return ConversationHandler.END
-
-def start_work(update: Update, context: CallbackContext) -> int:
-    """Start the work after subscription check."""
-    try:
-        message = update.message or update.callback_query.message
-        keyboard = [[InlineKeyboardButton("Начать работу", callback_data='start_work')]]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-
-        message.reply_text(
-            "Добро пожаловать! Я помогу вам создать engaging посты для вашего Telegram канала.",
-            reply_markup=reply_markup
-        )
-        return TOPIC
-
-    except Exception as e:
-        logger.error(f"Error in start_work: {e}", exc_info=True)
-        message = update.message or update.callback_query.message
-        message.reply_text(
-            "❌ Произошла ошибка. Пожалуйста, попробуйте позже."
         )
         return ConversationHandler.END
 
@@ -81,7 +71,14 @@ def button_handler(update: Update, context: CallbackContext) -> int:
         if query.data == 'check_subscription':
             is_subscribed = check_subscription(context, update.effective_user.id)
             if is_subscribed:
-                return start_work(update, context)
+                keyboard = [[InlineKeyboardButton("✨ Начать работу", callback_data='start_work')]]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                query.message.reply_text(
+                    "✅ Отлично! Теперь можно начать работу.\n\n"
+                    "Нажмите кнопку ниже:",
+                    reply_markup=reply_markup
+                )
+                return TOPIC
             else:
                 query.message.reply_text(
                     "❌ Вы все еще не подписаны на канал @expert_buyanov\n"
@@ -91,9 +88,14 @@ def button_handler(update: Update, context: CallbackContext) -> int:
                 return SUBSCRIPTION_CHECK
 
         elif query.data == 'start_work':
-            query.message.reply_text("Какая тема вашего канала?")
-            context.user_data.clear()
+            query.message.reply_text(
+                "📝 Какая тема вашего канала?\n\n"
+                "Опишите основную тематику и направленность канала.\n"
+                "Например: бизнес, психология, здоровье, технологии и т.д.\n\n"
+                "Напишите краткое описание темы:"
+            )
             context.user_data['waiting_for'] = 'topic'
+            logger.info("Requested channel topic")
             return TOPIC
 
         elif query.data in ['advertising', 'products', 'services', 'consulting']:
@@ -103,7 +105,13 @@ def button_handler(update: Update, context: CallbackContext) -> int:
                 context.user_data['waiting_for'] = 'product_details'
                 return PRODUCT_DETAILS
             else:
-                query.message.reply_text("Какие у вас есть дополнительные пожелания к контенту?")
+                query.message.reply_text(
+                    "🎯 Какие у вас есть дополнительные пожелания к контенту?\n\n"
+                    "Например:\n"
+                    "• Особый формат подачи\n"
+                    "• Специфические темы\n"
+                    "• Табу и ограничения"
+                )
                 context.user_data['waiting_for'] = 'preferences'
                 return PREFERENCES
 
@@ -114,9 +122,30 @@ def button_handler(update: Update, context: CallbackContext) -> int:
                 context.user_data['waiting_for'] = 'custom_style'
                 return STYLE
 
-            query.message.reply_text("Какие эмоции должен вызывать контент у аудитории?")
+            query.message.reply_text(
+                "🎭 Какие эмоции должен вызывать контент у аудитории?\n\n"
+                "Например:\n"
+                "• Доверие\n"
+                "• Интерес\n"
+                "• Желание действовать"
+            )
             context.user_data['waiting_for'] = 'emotions'
             return EMOTIONS
+
+        elif query.data == 'add_example':
+            logger.info("User requested to add another example")
+            query.message.reply_text("📝 Хорошо, пришлите следующий пример поста.")
+            return EXAMPLES
+
+        elif query.data == 'finish_examples':
+            logger.info("User requested to finish adding examples")
+            if len(context.user_data.get('examples', [])) < 1:
+                query.message.reply_text(
+                    "❌ Пожалуйста, пришлите хотя бы один пример поста."
+                )
+                return EXAMPLES
+
+            return process_examples(update, context)
 
         elif query.data == 'new_plan':
             query.message.reply_text("Какая тема вашего канала?")
@@ -133,6 +162,47 @@ def button_handler(update: Update, context: CallbackContext) -> int:
         )
         return ConversationHandler.END
 
+def handle_example_post(update: Update, context: CallbackContext) -> int:
+    """Handle incoming example posts and show action buttons."""
+    try:
+        text = update.message.text
+        logger.info("============ HANDLING EXAMPLE POST ============")
+        logger.info(f"Received example post: {text[:50]}...")  # Log first 50 chars
+
+        # Initialize examples list if it doesn't exist
+        if 'examples' not in context.user_data:
+            context.user_data['examples'] = []
+            logger.info("Initialized examples list")
+
+        # Add the new example
+        context.user_data['examples'].append(text)
+        example_count = len(context.user_data['examples'])
+        logger.info(f"Added example post #{example_count}")
+
+        # Create keyboard with buttons
+        keyboard = [[
+            InlineKeyboardButton("📝 Добавить еще пост", callback_data='add_example'),
+            InlineKeyboardButton("✅ Готово", callback_data='finish_examples')
+        ]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        # Send response with buttons
+        update.message.reply_text(
+            f"👍 Отлично! Пост #{example_count} сохранен.\n"
+            "Выберите действие:",
+            reply_markup=reply_markup
+        )
+        logger.info("Sent response with action buttons")
+        return EXAMPLES
+
+    except Exception as e:
+        logger.error(f"Error handling example post: {e}", exc_info=True)
+        update.message.reply_text(
+            "❌ Произошла ошибка при сохранении примера. "
+            "Пожалуйста, попробуйте еще раз."
+        )
+        return EXAMPLES
+
 def text_handler(update: Update, context: CallbackContext) -> int:
     """Handle text input during conversation."""
     try:
@@ -140,27 +210,44 @@ def text_handler(update: Update, context: CallbackContext) -> int:
         logger.info("============ TEXT RECEIVED ============")
         logger.info(f"Text: {text}")
         logger.info(f"Waiting for: {context.user_data.get('waiting_for')}")
-        logger.info(f"User data: {context.user_data}")
+        logger.info(f"Full user data: {context.user_data}")
         logger.info("======================================")
 
-        if context.user_data.get('waiting_for') == 'topic':
+        if context.user_data.get('waiting_for') == 'examples':
+            return handle_example_post(update, context)
+
+        elif context.user_data.get('waiting_for') == 'topic':
+            logger.info("Processing topic input")
             context.user_data['topic'] = text
-            update.message.reply_text("Опишите вашу целевую аудиторию:")
+            update.message.reply_text(
+                "✍️ Отлично! Теперь опишите вашу целевую аудиторию:\n\n"
+                "Например:\n"
+                "• Возраст\n"
+                "• Интересы\n"
+                "• Проблемы, которые вы решаете"
+            )
             context.user_data['waiting_for'] = 'audience'
+            logger.info("Topic saved, moving to audience input")
             return AUDIENCE
 
         elif context.user_data.get('waiting_for') == 'audience':
             context.user_data['audience'] = text
             keyboard = create_monetization_keyboard()
             update.message.reply_text(
-                "Выберите метод монетизации:",
+                "💰 Выберите метод монетизации:",
                 reply_markup=keyboard
             )
             return MONETIZATION
 
         elif context.user_data.get('waiting_for') == 'product_details':
             context.user_data['product_details'] = text
-            update.message.reply_text("Какие у вас есть дополнительные пожелания к контенту?")
+            update.message.reply_text(
+                "🎯 Какие у вас есть дополнительные пожелания к контенту?\n\n"
+                "Например:\n"
+                "• Особый формат подачи\n"
+                "• Специфические темы\n"
+                "• Табу и ограничения"
+            )
             context.user_data['waiting_for'] = 'preferences'
             return PREFERENCES
 
@@ -168,37 +255,35 @@ def text_handler(update: Update, context: CallbackContext) -> int:
             context.user_data['preferences'] = text
             keyboard = create_style_keyboard()
             update.message.reply_text(
-                "Выберите стиль написания:",
+                "✨ Выберите стиль написания постов:",
                 reply_markup=keyboard
             )
             return STYLE
 
         elif context.user_data.get('waiting_for') == 'custom_style':
             context.user_data['style'] = text
-            update.message.reply_text("Какие эмоции должен вызывать контент у аудитории?")
+            update.message.reply_text(
+                "🎭 Какие эмоции должен вызывать контент у аудитории?\n\n"
+                "Например:\n"
+                "• Доверие\n"
+                "• Интерес\n"
+                "• Желание действовать"
+            )
             context.user_data['waiting_for'] = 'emotions'
             return EMOTIONS
 
         elif context.user_data.get('waiting_for') == 'emotions':
             context.user_data['emotions'] = text
             update.message.reply_text(
-                "Отлично! Теперь перешлите мне 2-3 примера постов, которые вам нравятся.\n"
-                "После отправки всех примеров, я сгенерирую контент-план."
+                "📝 Отлично! Теперь пришлите примеры постов, которые вам нравятся.\n\n"
+                "После каждого поста вы сможете:\n"
+                "• Добавить еще один пример\n"
+                "• Завершить добавление примеров\n\n"
+                "Пришлите первый пример:"
             )
             context.user_data['waiting_for'] = 'examples'
             context.user_data['examples'] = []
             return EXAMPLES
-
-        elif context.user_data.get('waiting_for') == 'examples':
-            if 'examples' not in context.user_data:
-                context.user_data['examples'] = []
-
-            context.user_data['examples'].append(text)
-            if len(context.user_data['examples']) >= 2:
-                return process_examples(update, context)
-            else:
-                update.message.reply_text("Отлично! Пришлите еще один пример.")
-                return EXAMPLES
 
         elif context.user_data.get('waiting_for') == 'post_number':
             try:
@@ -219,7 +304,7 @@ def text_handler(update: Update, context: CallbackContext) -> int:
                         "Чтобы сгенерировать другой пост, введите его номер (1-14):",
                         reply_markup=InlineKeyboardMarkup([[
                             InlineKeyboardButton("🔄 Сгенерировать новый контент-план", 
-                                             callback_data='new_plan')
+                                               callback_data='new_plan')
                         ]])
                     )
                     return POST_NUMBER
@@ -273,7 +358,7 @@ def process_examples(update: Update, context: CallbackContext) -> int:
             "введите его номер (от 1 до 14):",
             reply_markup=InlineKeyboardMarkup([[
                 InlineKeyboardButton("🔄 Сгенерировать новый контент-план", 
-                                 callback_data='new_plan')
+                                    callback_data='new_plan')
             ]])
         )
 
