@@ -77,53 +77,61 @@ def button_handler(update: Update, context: CallbackContext) -> int:
     logger.info(f"User data: {context.user_data}")
     logger.info("=======================================")
 
-    if query.data == 'check_subscription':
-        is_subscribed = check_subscription(context, update.effective_user.id)
-        if is_subscribed:
-            return start_work(update, context)
-        else:
-            query.message.reply_text(
-                "❌ Вы все еще не подписаны на канал @expert_buyanov\n"
-                "Подпишитесь и нажмите кнопку проверки ещё раз.",
-                reply_markup=create_subscription_keyboard()
-            )
-            return SUBSCRIPTION_CHECK
+    try:
+        if query.data == 'check_subscription':
+            is_subscribed = check_subscription(context, update.effective_user.id)
+            if is_subscribed:
+                return start_work(update, context)
+            else:
+                query.message.reply_text(
+                    "❌ Вы все еще не подписаны на канал @expert_buyanov\n"
+                    "Подпишитесь и нажмите кнопку проверки ещё раз.",
+                    reply_markup=create_subscription_keyboard()
+                )
+                return SUBSCRIPTION_CHECK
 
-    elif query.data == 'start_work':
-        query.message.reply_text("Какая тема вашего канала?")
-        context.user_data.clear()
-        context.user_data['waiting_for'] = 'topic'
-        return TOPIC
+        elif query.data == 'start_work':
+            query.message.reply_text("Какая тема вашего канала?")
+            context.user_data.clear()
+            context.user_data['waiting_for'] = 'topic'
+            return TOPIC
 
-    elif query.data in ['advertising', 'products', 'services', 'consulting']:
-        context.user_data['monetization'] = query.data
-        if query.data != 'advertising':
-            query.message.reply_text("Опишите ваш продукт/услугу/курс подробнее:")
-            context.user_data['waiting_for'] = 'product_details'
-            return PRODUCT_DETAILS
-        else:
-            query.message.reply_text("Какие у вас есть дополнительные пожелания к контенту?")
-            context.user_data['waiting_for'] = 'preferences'
-            return PREFERENCES
+        elif query.data in ['advertising', 'products', 'services', 'consulting']:
+            context.user_data['monetization'] = query.data
+            if query.data != 'advertising':
+                query.message.reply_text("Опишите ваш продукт/услугу/курс подробнее:")
+                context.user_data['waiting_for'] = 'product_details'
+                return PRODUCT_DETAILS
+            else:
+                query.message.reply_text("Какие у вас есть дополнительные пожелания к контенту?")
+                context.user_data['waiting_for'] = 'preferences'
+                return PREFERENCES
 
-    elif query.data in ['aggressive', 'business', 'humorous', 'custom']:
-        context.user_data['style'] = query.data
-        if query.data == 'custom':
-            query.message.reply_text("Опишите ваш стиль:")
-            context.user_data['waiting_for'] = 'custom_style'
-            return STYLE
+        elif query.data in ['aggressive', 'business', 'humorous', 'custom']:
+            context.user_data['style'] = query.data
+            if query.data == 'custom':
+                query.message.reply_text("Опишите ваш стиль:")
+                context.user_data['waiting_for'] = 'custom_style'
+                return STYLE
 
-        query.message.reply_text("Какие эмоции должен вызывать контент у аудитории?")
-        context.user_data['waiting_for'] = 'emotions'
-        return EMOTIONS
+            query.message.reply_text("Какие эмоции должен вызывать контент у аудитории?")
+            context.user_data['waiting_for'] = 'emotions'
+            return EMOTIONS
 
-    elif query.data == 'new_plan':
-        query.message.reply_text("Какая тема вашего канала?")
-        context.user_data.clear()
-        context.user_data['waiting_for'] = 'topic'
-        return TOPIC
+        elif query.data == 'new_plan':
+            query.message.reply_text("Какая тема вашего канала?")
+            context.user_data.clear()
+            context.user_data['waiting_for'] = 'topic'
+            return TOPIC
 
-    return ConversationHandler.END
+        return ConversationHandler.END
+
+    except Exception as e:
+        logger.error(f"Error in button_handler: {e}", exc_info=True)
+        query.message.reply_text(
+            "❌ Произошла ошибка. Пожалуйста, начните заново с команды /start"
+        )
+        return ConversationHandler.END
 
 def text_handler(update: Update, context: CallbackContext) -> int:
     """Handle text input during conversation."""
