@@ -9,7 +9,7 @@ run = ["sh", "-c", "gunicorn --bind 0.0.0.0:5000 wsgi:app"]
 ignorePorts = true
 
 [workflows]
-runButton = "Dev Server"
+runButton = "Production"
 
 [[workflows.workflow]]
 name = "Project"
@@ -61,6 +61,15 @@ mode = "sequential"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "gunicorn --bind 0.0.0.0:5000 --reload wsgi:app"
+
+[[workflows.workflow]]
+name = "Production"
+author = 39687413
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "gunicorn --bind 0.0.0.0:5000 wsgi:app"
 
 [[ports]]
 localPort = 5000
