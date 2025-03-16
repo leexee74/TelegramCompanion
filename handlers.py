@@ -29,10 +29,9 @@ def start(update: Update, context: CallbackContext) -> int:
         logger.info(f"Subscription check result for user {user_id}: {is_subscribed}")
 
         if not is_subscribed:
-            reply_markup = create_subscription_keyboard()
             update.message.reply_text(
                 "👋 Для использования бота необходимо подписаться на канал @expert_buyanov",
-                reply_markup=reply_markup
+                reply_markup=create_subscription_keyboard()
             )
             return SUBSCRIPTION_CHECK
 
@@ -64,10 +63,11 @@ def button_handler(update: Update, context: CallbackContext) -> int:
     logger.info("============ BUTTON PRESSED ============")
     logger.info(f"Button data: {query.data}")
     logger.info(f"Current state: {context.user_data.get('waiting_for')}")
-    logger.info(f"User data: {context.user_data}")
+    logger.info(f"User data keys: {list(context.user_data.keys())}")
     logger.info("=======================================")
 
     try:
+        # Handle subscription check
         if query.data == 'check_subscription':
             is_subscribed = check_subscription(context, update.effective_user.id)
             if is_subscribed:
@@ -87,6 +87,7 @@ def button_handler(update: Update, context: CallbackContext) -> int:
                 )
                 return SUBSCRIPTION_CHECK
 
+        # Handle start work button
         elif query.data == 'start_work':
             query.message.reply_text(
                 "📝 Какая тема вашего канала?\n\n"
@@ -98,10 +99,14 @@ def button_handler(update: Update, context: CallbackContext) -> int:
             logger.info("Requested channel topic")
             return TOPIC
 
+        # Handle monetization options
         elif query.data in ['advertising', 'products', 'services', 'consulting']:
             context.user_data['monetization'] = query.data
             if query.data != 'advertising':
-                query.message.reply_text("Опишите ваш продукт/услугу/курс подробнее:")
+                query.message.reply_text(
+                    "🎯 Опишите ваш продукт/услугу/курс подробнее:\n\n"
+                    "Укажите основные характеристики, преимущества и особенности."
+                )
                 context.user_data['waiting_for'] = 'product_details'
                 return PRODUCT_DETAILS
             else:
@@ -115,10 +120,14 @@ def button_handler(update: Update, context: CallbackContext) -> int:
                 context.user_data['waiting_for'] = 'preferences'
                 return PREFERENCES
 
+        # Handle writing style selection
         elif query.data in ['aggressive', 'business', 'humorous', 'custom']:
             context.user_data['style'] = query.data
             if query.data == 'custom':
-                query.message.reply_text("Опишите ваш стиль:")
+                query.message.reply_text(
+                    "✍ Опишите ваш стиль:\n\n"
+                    "Укажите особенности подачи материала, тон общения и другие важные детали."
+                )
                 context.user_data['waiting_for'] = 'custom_style'
                 return STYLE
 
@@ -132,6 +141,7 @@ def button_handler(update: Update, context: CallbackContext) -> int:
             context.user_data['waiting_for'] = 'emotions'
             return EMOTIONS
 
+        # Handle example management
         elif query.data == 'add_example':
             logger.info("User requested to add another example")
             query.message.reply_text("📝 Хорошо, пришлите следующий пример поста.")
@@ -139,16 +149,81 @@ def button_handler(update: Update, context: CallbackContext) -> int:
 
         elif query.data == 'finish_examples':
             logger.info("User requested to finish adding examples")
-            if len(context.user_data.get('examples', [])) < 1:
+            if not context.user_data.get('examples', []):
                 query.message.reply_text(
                     "❌ Пожалуйста, пришлите хотя бы один пример поста."
                 )
                 return EXAMPLES
 
-            return process_examples(update, context)
+            try:
+                # Verify all required data is present
+                required_fields = ['topic', 'audience', 'monetization', 'style', 'emotions']
+                missing_fields = [field for field in required_fields if not context.user_data.get(field)]
 
+                if missing_fields:
+                    logger.error(f"Missing required fields: {missing_fields}")
+                    query.message.reply_text(
+                        "❌ Не хватает некоторых данных. Пожалуйста, начните заново с команды /start"
+                    )
+                    return ConversationHandler.END
+
+                # Log complete user data before generating plan
+                logger.info("============ GENERATING CONTENT PLAN ============")
+                logger.info(f"Number of examples: {len(context.user_data.get('examples', []))}")
+                logger.info(f"Topic: {context.user_data.get('topic')}")
+                logger.info(f"Audience: {context.user_data.get('audience')}")
+                logger.info(f"Style: {context.user_data.get('style')}")
+                logger.info(f"Monetization: {context.user_data.get('monetization')}")
+                logger.info(f"Emotions: {context.user_data.get('emotions')}")
+                logger.info("=============================================")
+
+                query.message.reply_text("🔄 Генерирую контент-план на 14 дней...")
+
+                # Extract text from examples
+                examples_text = [example['text'] for example in context.user_data.get('examples', [])]
+                context.user_data['examples_text'] = examples_text
+
+                # Generate and save content plan
+                content_plan = generate_content_plan(context.user_data)
+                context.user_data['content_plan'] = content_plan
+                save_user_data(update.effective_chat.id, context.user_data)
+
+                # Format and display content plan
+                formatted_plan = "📋 Контент-план на 14 дней:\n\n"
+                formatted_plan += content_plan
+
+                # Split long message if needed
+                if len(formatted_plan) > 4000:
+                    parts = [formatted_plan[i:i+4000] for i in range(0, len(formatted_plan), 4000)]
+                    for part in parts:
+                        query.message.reply_text(part)
+                else:
+                    query.message.reply_text(formatted_plan)
+
+                # Show options for post generation
+                query.message.reply_text(
+                    "✍️ Чтобы сгенерировать полный текст поста, "
+                    "введите его номер (от 1 до 14):",
+                    reply_markup=InlineKeyboardMarkup([[
+                        InlineKeyboardButton("🔄 Сгенерировать новый контент-план", 
+                                            callback_data='new_plan')
+                    ]])
+                )
+                context.user_data['waiting_for'] = 'post_number'
+                return POST_NUMBER
+
+            except Exception as e:
+                logger.exception("Error in finish_examples:")
+                query.message.reply_text(
+                    "❌ Произошла ошибка при генерации контент-плана. "
+                    "Пожалуйста, попробуйте еще раз или начните заново с команды /start"
+                )
+                return EXAMPLES
+
+        # Handle new plan request
         elif query.data == 'new_plan':
-            query.message.reply_text("Какая тема вашего канала?")
+            logger.info("User requested new content plan")
+            query.message.reply_text("📝 Какая тема вашего канала?")
             context.user_data.clear()
             context.user_data['waiting_for'] = 'topic'
             return TOPIC
@@ -223,7 +298,7 @@ def text_handler(update: Update, context: CallbackContext) -> int:
         logger.info("============ TEXT RECEIVED ============")
         logger.info(f"Text: {text}")
         logger.info(f"Waiting for: {context.user_data.get('waiting_for')}")
-        logger.info(f"Full user data: {context.user_data}")
+        logger.info(f"User data keys: {list(context.user_data.keys())}")
         logger.info("======================================")
 
         if context.user_data.get('waiting_for') == 'examples':
@@ -286,6 +361,7 @@ def text_handler(update: Update, context: CallbackContext) -> int:
             return EMOTIONS
 
         elif context.user_data.get('waiting_for') == 'emotions':
+            logger.info("Processing emotions input")
             context.user_data['emotions'] = text
             update.message.reply_text(
                 "📝 Отлично! Теперь пришлите примеры постов, которые вам нравятся.\n\n"
@@ -296,6 +372,7 @@ def text_handler(update: Update, context: CallbackContext) -> int:
             )
             context.user_data['waiting_for'] = 'examples'
             context.user_data['examples'] = []
+            logger.info("Emotions saved, moving to examples collection")
             return EXAMPLES
 
         elif context.user_data.get('waiting_for') == 'post_number':
@@ -330,65 +407,12 @@ def text_handler(update: Update, context: CallbackContext) -> int:
                 )
                 return POST_NUMBER
 
+        return ConversationHandler.END
+
     except Exception as e:
         logger.error(f"Error in text_handler: {e}", exc_info=True)
         update.message.reply_text(
-            "❌ Произошла ошибка. Пожалуйста, попробуйте еще раз или начните заново с команды /start"
-        )
-        return ConversationHandler.END
-
-def process_examples(update: Update, context: CallbackContext) -> int:
-    """Process collected examples and generate content plan."""
-    try:
-        logger.info("============ PROCESSING EXAMPLES ============")
-        logger.info(f"User data: {context.user_data}")
-        logger.info("===========================================")
-
-        # Show processing message
-        update.message.reply_text("🔄 Генерирую контент-план на 14 дней...")
-
-        # Extract text from examples
-        examples_text = [example['text'] for example in context.user_data.get('examples', [])]
-        context.user_data['examples_text'] = examples_text
-
-        # Generate and save content plan
-        content_plan = generate_content_plan(context.user_data)
-        context.user_data['content_plan'] = content_plan
-        save_user_data(update.effective_chat.id, context.user_data)
-
-        # Format and display content plan
-        formatted_plan = "📋 Контент-план на 14 дней:\n\n"
-        formatted_plan += content_plan
-
-        # Split long message if needed
-        if len(formatted_plan) > 4000:
-            # Send plan in parts
-            parts = [formatted_plan[i:i+4000] for i in range(0, len(formatted_plan), 4000)]
-            for part in parts:
-                update.message.reply_text(part)
-        else:
-            update.message.reply_text(formatted_plan)
-
-        # Show options for post generation
-        update.message.reply_text(
-            "✍️ Чтобы сгенерировать полный текст поста, "
-            "введите его номер (от 1 до 14):",
-            reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton("🔄 Сгенерировать новый контент-план", 
-                                    callback_data='new_plan')
-            ]])
-        )
-
-        # Set state for post number input
-        context.user_data['waiting_for'] = 'post_number'
-        save_user_data(update.effective_chat.id, context.user_data)
-        return POST_NUMBER
-
-    except Exception as e:
-        logger.error(f"Error generating content plan: {e}")
-        update.message.reply_text(
-            "❌ Произошла ошибка при генерации контент-плана. "
-            "Попробуйте еще раз позже."
+            "❌ Произошла ошибка. Пожалуйста, начните заново с команды /start"
         )
         return ConversationHandler.END
 
