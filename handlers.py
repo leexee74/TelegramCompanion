@@ -16,15 +16,20 @@ logger = logging.getLogger(__name__)
 
 async def start(update: Update, context: CallbackContext) -> int:
     """Start the conversation and check subscription."""
+    logger.info(f"Start command received from user {update.effective_user.id}")
+
     is_subscribed = await check_subscription(context, update.effective_user.id)
+    logger.info(f"Subscription check result for user {update.effective_user.id}: {is_subscribed}")
 
     if not is_subscribed:
+        logger.info("User not subscribed, sending subscription prompt")
         update.message.reply_text(
             "👋 Для использования бота необходимо подписаться на канал @expert_buyanov",
             reply_markup=create_subscription_keyboard()
         )
         return SUBSCRIPTION_CHECK
 
+    logger.info("User is subscribed, proceeding with conversation")
     return start_work(update, context)
 
 def start_work(update: Update, context: CallbackContext) -> int:
