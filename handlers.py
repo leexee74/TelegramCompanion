@@ -52,8 +52,59 @@ def button_handler(update: Update, context: CallbackContext) -> int:
         context.user_data['waiting_for'] = 'emotions'
         return EMOTIONS
 
+    if query.data == 'continue_after_example':
+        if len(context.user_data.get('examples', [])) < 2:
+            query.message.reply_text("Отправьте следующий пример поста:")
+            return EXAMPLES
+        else:
+            return process_examples(update, context)
+
+    if query.data == 'finish_examples':
+        return process_examples(update, context)
+
     # Default return if no other conditions are met
     return ConversationHandler.END
+
+def process_examples(update: Update, context: CallbackContext) -> int:
+    """Process collected examples and generate content."""
+    query = update.callback_query
+    try:
+        # Combine all examples into one string
+        examples_text = "\n---\n".join(context.user_data.get('examples', []))
+        context.user_data['examples'] = examples_text
+
+        # Show processing message
+        query.message.reply_text("🔄 Обрабатываю примеры и генерирую контент...")
+
+        # Generate sample post
+        sample_post = generate_post(context.user_data)
+        query.message.reply_text(
+            "✨ Вот пример поста:\n\n" + sample_post + "\n\n🔄 Генерирую контент-план..."
+        )
+
+        # Generate and save content plan
+        content_plan = generate_content_plan(context.user_data)
+        context.user_data['content_plan'] = content_plan
+        save_user_data(update.effective_chat.id, context.user_data)
+
+        # Show options for next steps
+        keyboard = [
+            [InlineKeyboardButton("📋 Просмотреть контент-план", callback_data='view_plan')],
+            [InlineKeyboardButton("✍ Создать пост", callback_data='create_post')],
+            [InlineKeyboardButton("🔄 Сгенерировать новый контент-план", callback_data='new_plan')]
+        ]
+        query.message.reply_text(
+            "✅ Контент-план готов! Что делаем дальше?",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        return ConversationHandler.END
+    except Exception as e:
+        logger.error(f"Error generating content: {e}")
+        query.message.reply_text(
+            "❌ Произошла ошибка при генерации контента. Попробуйте еще раз позже."
+        )
+        return ConversationHandler.END
+
 
 def text_handler(update: Update, context: CallbackContext) -> int:
     """Handle text input during conversation."""
@@ -95,38 +146,32 @@ def text_handler(update: Update, context: CallbackContext) -> int:
 
     elif context.user_data.get('waiting_for') == 'emotions':
         context.user_data['emotions'] = text
-        update.message.reply_text("Перешлите 2-3 примера постов, которые вам нравятся:")
+        update.message.reply_text(
+            "Перешлите 2-3 примера постов, которые вам нравятся:\n\n"
+            "После отправки каждого поста нажмите кнопку 'Продолжить'",
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("Продолжить", callback_data='continue_after_example')
+            ]])
+        )
         context.user_data['waiting_for'] = 'examples'
+        context.user_data['examples'] = []  # Initialize empty list for examples
         return EXAMPLES
 
     elif context.user_data.get('waiting_for') == 'examples':
-        context.user_data['examples'] = text
-        # Generate sample post
-        try:
-            sample_post = generate_post(context.user_data)
-            update.message.reply_text(
-                "Вот пример поста:\n\n" + sample_post + "\n\nГенерирую контент-план..."
-            )
-            content_plan = generate_content_plan(context.user_data)
-            context.user_data['content_plan'] = content_plan
-            save_user_data(update.effective_chat.id, context.user_data)
+        # Add the example to the list
+        if 'examples' not in context.user_data:
+            context.user_data['examples'] = []
+        context.user_data['examples'].append(text)
 
-            keyboard = [
-                [InlineKeyboardButton("📋 Просмотреть контент-план", callback_data='view_plan')],
-                [InlineKeyboardButton("✍ Создать пост", callback_data='create_post')],
-                [InlineKeyboardButton("🔄 Сгенерировать новый контент-план", callback_data='new_plan')]
-            ]
-            update.message.reply_text(
-                "Контент-план готов! Что делаем дальше?",
-                reply_markup=InlineKeyboardMarkup(keyboard)
-            )
-            return ConversationHandler.END
-        except Exception as e:
-            logger.error(f"Error generating content: {e}")
-            update.message.reply_text(
-                "Произошла ошибка при генерации контента. Попробуйте еще раз позже."
-            )
-            return ConversationHandler.END
+        # Show confirmation and continue button
+        update.message.reply_text(
+            f"✅ Пример #{len(context.user_data['examples'])} получен!\n\n"
+            "Отправьте следующий пример или нажмите 'Завершить', если готовы продолжить.",
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("Завершить", callback_data='finish_examples')
+            ]])
+        )
+        return EXAMPLES
 
     # Default return if no other conditions are met
     return ConversationHandler.END
