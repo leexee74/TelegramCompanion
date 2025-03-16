@@ -13,7 +13,7 @@ from handlers import (
     EXAMPLES, POST_NUMBER
 )
 
-# Set up logging with more details
+# Set up logging
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.DEBUG
@@ -26,9 +26,8 @@ def error_handler(update, context):
     logger.error(f"Update: {update}")
     logger.error(f"Error: {context.error}")
     logger.error("========================================")
-    logger.error('Update "%s" caused error "%s"', update, context.error, exc_info=True)
 
-def main():
+def run_telegram_bot():
     """Start the bot."""
     try:
         # Initialize database
@@ -46,11 +45,11 @@ def main():
         dispatcher = updater.dispatcher
         logger.info("Bot dispatcher initialized")
 
-        # Add error handler first
+        # Add error handler
         dispatcher.add_error_handler(error_handler)
         logger.info("Error handler added")
 
-        # Create conversation handler with proper state management
+        # Create conversation handler
         conv_handler = ConversationHandler(
             entry_points=[CommandHandler('start', start)],
             states={
@@ -78,7 +77,7 @@ def main():
                     MessageHandler(Filters.text & ~Filters.command, text_handler)
                 ],
                 EMOTIONS: [
-                    MessageHandler((Filters.text | Filters.forwarded) & ~Filters.command, text_handler)
+                    MessageHandler(Filters.text & ~Filters.command, text_handler)
                 ],
                 EXAMPLES: [
                     MessageHandler((Filters.text | Filters.forwarded) & ~Filters.command, text_handler),
@@ -99,11 +98,10 @@ def main():
         dispatcher.add_handler(conv_handler)
         logger.info("Conversation handler added")
 
-        # Start the Bot with drop_pending_updates to avoid conflicts
+        # Start the Bot
         logger.info("Bot starting...")
         updater.start_polling(drop_pending_updates=True)
         logger.info("Bot started successfully!")
-        logger.info("Long polling started, waiting for messages...")
 
         # Keep the bot running
         updater.idle()
@@ -115,7 +113,7 @@ def main():
 if __name__ == '__main__':
     try:
         logger.info("Starting bot application...")
-        main()
+        run_telegram_bot()
     except Exception as e:
         logger.error("Critical error in main:", exc_info=True)
         sys.exit(1)

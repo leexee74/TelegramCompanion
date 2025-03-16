@@ -141,12 +141,13 @@ def button_handler(update: Update, context: CallbackContext) -> int:
             context.user_data['waiting_for'] = 'emotions'
             return EMOTIONS
 
-        # Handle example management
+        # Handle add example
         elif query.data == 'add_example':
             logger.info("User requested to add another example")
             query.message.reply_text("📝 Хорошо, пришлите следующий пример поста.")
             return EXAMPLES
 
+        # Handle finish examples
         elif query.data == 'finish_examples':
             logger.info("User requested to finish adding examples")
             if not context.user_data.get('examples', []):
@@ -166,16 +167,6 @@ def button_handler(update: Update, context: CallbackContext) -> int:
                         "❌ Не хватает некоторых данных. Пожалуйста, начните заново с команды /start"
                     )
                     return ConversationHandler.END
-
-                # Log complete user data before generating plan
-                logger.info("============ GENERATING CONTENT PLAN ============")
-                logger.info(f"Number of examples: {len(context.user_data.get('examples', []))}")
-                logger.info(f"Topic: {context.user_data.get('topic')}")
-                logger.info(f"Audience: {context.user_data.get('audience')}")
-                logger.info(f"Style: {context.user_data.get('style')}")
-                logger.info(f"Monetization: {context.user_data.get('monetization')}")
-                logger.info(f"Emotions: {context.user_data.get('emotions')}")
-                logger.info("=============================================")
 
                 query.message.reply_text("🔄 Генерирую контент-план на 14 дней...")
 
@@ -206,7 +197,7 @@ def button_handler(update: Update, context: CallbackContext) -> int:
                     "введите его номер (от 1 до 14):",
                     reply_markup=InlineKeyboardMarkup([[
                         InlineKeyboardButton("🔄 Сгенерировать новый контент-план", 
-                                            callback_data='new_plan')
+                                           callback_data='new_plan')
                     ]])
                 )
                 context.user_data['waiting_for'] = 'post_number'
@@ -419,27 +410,43 @@ def text_handler(update: Update, context: CallbackContext) -> int:
 
         elif context.user_data.get('waiting_for') == 'post_number':
             try:
+                logger.info("============ PROCESSING POST NUMBER ============")
+                logger.info(f"Received text: {text}")
+                logger.info(f"Current user data: {context.user_data}")
+
                 post_number = int(text)
                 if 1 <= post_number <= 14:
                     update.message.reply_text(f"🔄 Получено число {post_number}, генерирую пост...")
                     user_data = get_user_data(update.effective_chat.id)
 
+                    logger.info(f"Retrieved user data from database: {list(user_data.keys())}")
+
                     if not user_data or 'content_plan' not in user_data:
+                        logger.error("Content plan not found in user data")
                         update.message.reply_text(
                             "❌ Ошибка: контент-план не найден. Пожалуйста, начните заново с команды /start"
                         )
                         return ConversationHandler.END
 
-                    generated_post = generate_post(user_data, post_number)
-                    update.message.reply_text(
-                        f"✨ Готово! Вот ваш пост #{post_number}:\n\n{generated_post}\n\n"
-                        "Чтобы сгенерировать другой пост, введите его номер (1-14):",
-                        reply_markup=InlineKeyboardMarkup([[
-                            InlineKeyboardButton("🔄 Сгенерировать новый контент-план", 
-                                                callback_data='new_plan')
-                        ]])
-                    )
-                    return POST_NUMBER
+                    try:
+                        generated_post = generate_post(user_data, post_number)
+                        logger.info(f"Successfully generated post #{post_number}")
+
+                        update.message.reply_text(
+                            f"✨ Готово! Вот ваш пост #{post_number}:\n\n{generated_post}\n\n"
+                            "Чтобы сгенерировать другой пост, введите его номер (1-14):",
+                            reply_markup=InlineKeyboardMarkup([[
+                                InlineKeyboardButton("🔄 Сгенерировать новый контент-план", 
+                                                   callback_data='new_plan')
+                            ]])
+                        )
+                        return POST_NUMBER
+                    except Exception as e:
+                        logger.error(f"Error generating post: {e}", exc_info=True)
+                        update.message.reply_text(
+                            "❌ Произошла ошибка при генерации поста. Пожалуйста, попробуйте еще раз."
+                        )
+                        return POST_NUMBER
                 else:
                     update.message.reply_text("❌ Пожалуйста, введите число от 1 до 14.")
                     return POST_NUMBER
@@ -448,6 +455,12 @@ def text_handler(update: Update, context: CallbackContext) -> int:
                     "❌ Пожалуйста, введите корректный номер поста (число от 1 до 14)."
                 )
                 return POST_NUMBER
+            except Exception as e:
+                logger.error(f"Unexpected error in post number handler: {e}", exc_info=True)
+                update.message.reply_text(
+                    "❌ Произошла неожиданная ошибка. Пожалуйста, начните заново с команды /start"
+                )
+                return ConversationHandler.END
 
         logger.warning(f"Unexpected waiting_for state: {context.user_data.get('waiting_for')}")
         return ConversationHandler.END
