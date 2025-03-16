@@ -6,7 +6,7 @@ def setup_logging():
     """Set up logging configuration."""
     logging.basicConfig(
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        level=logging.INFO
+        level=logging.DEBUG
     )
 
 def create_monetization_keyboard() -> List[List[InlineKeyboardButton]]:
@@ -34,5 +34,5 @@ def format_post(post: str) -> str:
     post = post.replace('_', '\\_')
     post = post.replace('`', '\\`')
     post = post.replace('[', '\\[')
-    
+
     return post

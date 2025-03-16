@@ -87,9 +87,9 @@ def main():
         # Add handler to dispatcher
         dispatcher.add_handler(conv_handler)
 
-        # Start the Bot
+        # Start the Bot with drop_pending_updates to avoid conflicts
         logger.info("Bot starting...")
-        updater.start_polling()
+        updater.start_polling(drop_pending_updates=True)
         logger.info("Bot started successfully!")
         updater.idle()
 

@@ -144,21 +144,27 @@ def text_handler(update: Update, context: CallbackContext) -> int:
             post_number = int(text)
             if 1 <= post_number <= 14:
                 update.message.reply_text("🔄 Генерирую пост...")
-                generated_post = generate_post(context.user_data, post_number)
-                update.message.reply_text(
-                    f"✨ Готово! Вот ваш пост #{post_number}:\n\n{generated_post}\n\n"
-                    "Чтобы сгенерировать другой пост, введите его номер (1-14):",
-                    reply_markup=InlineKeyboardMarkup([[
-                        InlineKeyboardButton("🔄 Сгенерировать новый контент-план", 
-                                           callback_data='new_plan')
-                    ]])
-                )
-                return ConversationHandler.END
+                try:
+                    generated_post = generate_post(context.user_data, post_number)
+                    update.message.reply_text(
+                        f"✨ Готово! Вот ваш пост #{post_number}:\n\n{generated_post}\n\n"
+                        "Чтобы сгенерировать другой пост, введите его номер (1-14):",
+                        reply_markup=InlineKeyboardMarkup([[
+                            InlineKeyboardButton("🔄 Сгенерировать новый контент-план", 
+                                               callback_data='new_plan')
+                        ]])
+                    )
+                except Exception as e:
+                    logger.error(f"Error generating post: {e}")
+                    update.message.reply_text(
+                        "❌ Произошла ошибка при генерации поста. "
+                        "Пожалуйста, попробуйте еще раз или выберите другой номер поста."
+                    )
             else:
                 update.message.reply_text(
                     "❌ Пожалуйста, введите число от 1 до 14."
                 )
-                return ConversationHandler.END
+            return ConversationHandler.END
         except ValueError:
             update.message.reply_text(
                 "❌ Пожалуйста, введите корректный номер поста (число от 1 до 14)."
