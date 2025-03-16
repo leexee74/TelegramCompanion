@@ -4,6 +4,7 @@ from telegram.ext import (
     Updater, CommandHandler, MessageHandler, Filters,
     CallbackQueryHandler, ConversationHandler
 )
+from database import init_db
 from handlers import (
     start, button_handler, text_handler, cancel,
     SUBSCRIPTION_CHECK, TOPIC, AUDIENCE, MONETIZATION,
@@ -29,6 +30,10 @@ def error_handler(update, context):
 def main():
     """Start the bot."""
     try:
+        # Initialize database
+        init_db()
+        logger.info("Database initialized")
+
         # Initialize the bot
         TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
         if not TOKEN:
