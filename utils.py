@@ -1,14 +1,8 @@
 import logging
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ChatMember
 from telegram.ext import CallbackContext
-from typing import List
 
-def setup_logging():
-    """Set up logging configuration."""
-    logging.basicConfig(
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        level=logging.DEBUG
-    )
+logger = logging.getLogger(__name__)
 
 def create_monetization_keyboard() -> InlineKeyboardMarkup:
     """Create keyboard for monetization options."""
@@ -30,13 +24,16 @@ def create_style_keyboard() -> InlineKeyboardMarkup:
     ]
     return InlineKeyboardMarkup(keyboard)
 
-def format_post(post: str) -> str:
-    """Format the post text with proper Telegram markdown."""
-    # Replace common markdown characters
-    post = post.replace('*', '\\_')
-    post = post.replace('`', '\\`')
-    post = post.replace('[', '\\[')
-    return post
+def check_subscription(context: CallbackContext, user_id: int) -> bool:
+    """Check if user is subscribed to the required channel."""
+    try:
+        logger.info(f"Checking subscription for user {user_id}")
+        member = context.bot.get_chat_member(chat_id="@expert_buyanov", user_id=user_id)
+        logger.info(f"User {user_id} subscription status: {member.status}")
+        return member.status in [ChatMember.MEMBER, ChatMember.ADMINISTRATOR, ChatMember.CREATOR]
+    except Exception as e:
+        logger.error(f"Error checking subscription for user {user_id}: {e}", exc_info=True)
+        return False
 
 def create_subscription_keyboard() -> InlineKeyboardMarkup:
     """Create keyboard with subscription button."""
@@ -44,18 +41,3 @@ def create_subscription_keyboard() -> InlineKeyboardMarkup:
         InlineKeyboardButton("📢 Подписаться на канал", url="https://t.me/expert_buyanov"),
         InlineKeyboardButton("✅ Я подписался", callback_data='check_subscription')
     ]])
-
-def check_subscription(context: CallbackContext, user_id: int) -> bool:
-    """Check if user is subscribed to the required channel."""
-    try:
-        logger = logging.getLogger(__name__)
-        logger.info(f"Checking subscription for user {user_id}")
-
-        member = context.bot.get_chat_member(chat_id="@expert_buyanov", user_id=user_id)
-        logger.info(f"User {user_id} subscription status: {member.status}")
-
-        return member.status in [ChatMember.MEMBER, ChatMember.ADMINISTRATOR, ChatMember.CREATOR]
-    except Exception as e:
-        logger = logging.getLogger(__name__)
-        logger.error(f"Error checking subscription for user {user_id}: {e}", exc_info=True)
-        return False
