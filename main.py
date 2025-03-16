@@ -1,5 +1,6 @@
 import logging
 import os
+import sys
 from telegram.ext import (
     Updater, CommandHandler, MessageHandler, Filters,
     CallbackQueryHandler, ConversationHandler
@@ -88,12 +89,11 @@ def main():
                     MessageHandler(Filters.text & ~Filters.command, text_handler)
                 ],
                 EXAMPLES: [
-                    CallbackQueryHandler(button_handler),
                     MessageHandler(Filters.text & ~Filters.command, text_handler)
                 ],
                 POST_NUMBER: [
-                    MessageHandler(Filters.text & ~Filters.command, text_handler),
-                    CallbackQueryHandler(button_handler, pattern='^new_plan$')
+                    CallbackQueryHandler(button_handler, pattern='^new_plan$'),
+                    MessageHandler(Filters.text & ~Filters.command, text_handler)
                 ],
             },
             fallbacks=[CommandHandler('cancel', cancel)],
@@ -119,4 +119,9 @@ def main():
         raise
 
 if __name__ == '__main__':
-    main()
+    try:
+        logger.info("Starting bot application...")
+        main()
+    except Exception as e:
+        logger.error("Critical error in main:", exc_info=True)
+        sys.exit(1)

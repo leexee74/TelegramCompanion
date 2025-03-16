@@ -1,4 +1,5 @@
 import logging
+from typing import Optional, Dict, Any
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CallbackContext, ConversationHandler
 from database import save_user_data, get_user_data
@@ -28,12 +29,7 @@ def start(update: Update, context: CallbackContext) -> int:
         logger.info(f"Subscription check result for user {user_id}: {is_subscribed}")
 
         if not is_subscribed:
-            keyboard = [[
-                InlineKeyboardButton("📢 Подписаться на канал", url="https://t.me/expert_buyanov"),
-                InlineKeyboardButton("✅ Я подписался", callback_data='check_subscription')
-            ]]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-
+            reply_markup = create_subscription_keyboard()
             update.message.reply_text(
                 "👋 Для использования бота необходимо подписаться на канал @expert_buyanov",
                 reply_markup=reply_markup
@@ -52,14 +48,10 @@ def start(update: Update, context: CallbackContext) -> int:
 def start_work(update: Update, context: CallbackContext) -> int:
     """Start the work after subscription check."""
     try:
-        logger.info("============ STARTING WORK ============")
-        logger.info(f"User data: {context.user_data}")
-        logger.info("======================================")
-
+        message = update.message or update.callback_query.message
         keyboard = [[InlineKeyboardButton("Начать работу", callback_data='start_work')]]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
-        message = update.message or update.callback_query.message
         message.reply_text(
             "Добро пожаловать! Я помогу вам создать engaging посты для вашего Telegram канала.",
             reply_markup=reply_markup
@@ -75,7 +67,7 @@ def start_work(update: Update, context: CallbackContext) -> int:
         return ConversationHandler.END
 
 def button_handler(update: Update, context: CallbackContext) -> int:
-    """Handle button clicks during conversation."""
+    """Handle button callbacks."""
     query = update.callback_query
     query.answer()
 
@@ -93,21 +85,17 @@ def button_handler(update: Update, context: CallbackContext) -> int:
             query.message.reply_text(
                 "❌ Вы все еще не подписаны на канал @expert_buyanov\n"
                 "Подпишитесь и нажмите кнопку проверки ещё раз.",
-                reply_markup=InlineKeyboardMarkup([[
-                    InlineKeyboardButton("📢 Подписаться на канал", url="https://t.me/expert_buyanov"),
-                    InlineKeyboardButton("✅ Я подписался", callback_data='check_subscription')
-                ]])
+                reply_markup=create_subscription_keyboard()
             )
             return SUBSCRIPTION_CHECK
 
-    if query.data == 'start_work':
+    elif query.data == 'start_work':
         query.message.reply_text("Какая тема вашего канала?")
-        context.user_data.clear()  # Clear previous data
+        context.user_data.clear()
         context.user_data['waiting_for'] = 'topic'
         return TOPIC
 
-    if query.data in ['advertising', 'products', 'services', 'consulting']:
-        logger.info(f"Selected monetization: {query.data}")
+    elif query.data in ['advertising', 'products', 'services', 'consulting']:
         context.user_data['monetization'] = query.data
         if query.data != 'advertising':
             query.message.reply_text("Опишите ваш продукт/услугу/курс подробнее:")
@@ -118,8 +106,7 @@ def button_handler(update: Update, context: CallbackContext) -> int:
             context.user_data['waiting_for'] = 'preferences'
             return PREFERENCES
 
-    if query.data in ['aggressive', 'business', 'humorous', 'custom']:
-        logger.info(f"Selected style: {query.data}")
+    elif query.data in ['aggressive', 'business', 'humorous', 'custom']:
         context.user_data['style'] = query.data
         if query.data == 'custom':
             query.message.reply_text("Опишите ваш стиль:")
@@ -130,9 +117,9 @@ def button_handler(update: Update, context: CallbackContext) -> int:
         context.user_data['waiting_for'] = 'emotions'
         return EMOTIONS
 
-    if query.data == 'new_plan':
+    elif query.data == 'new_plan':
         query.message.reply_text("Какая тема вашего канала?")
-        context.user_data.clear()  # Clear previous data
+        context.user_data.clear()
         context.user_data['waiting_for'] = 'topic'
         return TOPIC
 
@@ -209,34 +196,27 @@ def text_handler(update: Update, context: CallbackContext) -> int:
             try:
                 post_number = int(text)
                 if 1 <= post_number <= 14:
-                    # Send immediate confirmation
                     update.message.reply_text(f"🔄 Получено число {post_number}, генерирую пост...")
-
-                    # Get saved user data
                     user_data = get_user_data(update.effective_chat.id)
+
                     if not user_data or 'content_plan' not in user_data:
                         update.message.reply_text(
                             "❌ Ошибка: контент-план не найден. Пожалуйста, начните заново с команды /start"
                         )
                         return ConversationHandler.END
 
-                    # Generate post
                     generated_post = generate_post(user_data, post_number)
-
-                    # Send response
                     update.message.reply_text(
                         f"✨ Готово! Вот ваш пост #{post_number}:\n\n{generated_post}\n\n"
                         "Чтобы сгенерировать другой пост, введите его номер (1-14):",
                         reply_markup=InlineKeyboardMarkup([[
                             InlineKeyboardButton("🔄 Сгенерировать новый контент-план", 
-                                            callback_data='new_plan')
+                                             callback_data='new_plan')
                         ]])
                     )
                     return POST_NUMBER
                 else:
-                    update.message.reply_text(
-                        "❌ Пожалуйста, введите число от 1 до 14."
-                    )
+                    update.message.reply_text("❌ Пожалуйста, введите число от 1 до 14.")
                     return POST_NUMBER
             except ValueError:
                 update.message.reply_text(
@@ -285,7 +265,7 @@ def process_examples(update: Update, context: CallbackContext) -> int:
             "введите его номер (от 1 до 14):",
             reply_markup=InlineKeyboardMarkup([[
                 InlineKeyboardButton("🔄 Сгенерировать новый контент-план", 
-                                callback_data='new_plan')
+                                 callback_data='new_plan')
             ]])
         )
 
