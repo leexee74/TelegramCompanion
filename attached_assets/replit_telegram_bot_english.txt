@@ -1,0 +1,151 @@
+# DETAILED TECHNICAL SPECIFICATION FOR TELEGRAM BOT DEVELOPMENT ON REPLIT WITH CHATGPT-4 INTEGRATION
+
+## 1. GENERAL OVERVIEW
+This Telegram bot, developed in Python on Replit, integrates with GPT-4 to generate highly engaging, human-like posts for Telegram channel owners. The bot communicates **exclusively in Russian** with clients, but this specification is provided in English to enhance Replit compatibility.
+
+## 2. TECHNOLOGY STACK
+- **Python 3.11+**
+- **python-telegram-bot==13.15** (stable version avoiding dependency conflicts)
+- **openai** (for ChatGPT-4 integration)
+- **sqlite3** (or Replit DB for data storage)
+
+## 3. PROJECT STRUCTURE
+```
+TelegramBotGPT4/
+├── main.py  # Main execution file
+├── handlers.py  # Telegram message and button handlers
+├── database.py  # Database functions
+├── prompts.py  # OpenAI prompt creation functions
+├── utils.py  # Utility functions (logging, error handling, formatting)
+├── requirements.txt  # Dependency list
+└── README.md  # Project documentation
+```
+
+## 4. INSTALLATION & SETUP
+1. **Create a Telegram bot via @BotFather** and obtain a token.
+2. **Set up a new Python project on Replit.**
+3. **Add the following dependencies to `requirements.txt`:**
+```
+python-telegram-bot==13.15
+openai
+sqlite3
+```
+4. **Install dependencies in Replit shell:**
+```
+pip install -r requirements.txt
+```
+5. **Set your OpenAI API key in Replit Secrets:**
+   - Key: `OPENAI_API_KEY`
+   - Value: `your_openai_api_key_here`
+
+## 5. DETAILED BOT LOGIC & USER INTERFACE
+
+### **User Flow in Telegram**
+1. **User starts the bot** with `/start`.
+2. **Bot displays a button:** "Начать работу" (Start Work)
+3. **User clicks the button**, and the bot sequentially asks for:
+   - **Channel topic** (text input)
+   - **Target audience** (text input)
+   - **Monetization method** (buttons):
+     - 📢 Реклама (Advertising)
+     - 🛍️ Продажа товаров (Selling Products)
+     - 🔧 Продажа услуг (Selling Services)
+     - 🎓 Консультации, курсы (Consulting, Courses)
+   - **If NOT advertising, the bot asks for details about the product/service/course.**
+   - **Additional content preferences** (text input)
+   - **Writing style (buttons):**
+     - ⚡ Агрессивный (Aggressive)
+     - 📊 Деловой (Business-like)
+     - 🤣 Юмористический (Humorous)
+     - ✍ Свой стиль (Custom Style - text input)
+   - **Desired audience emotions** (text input, e.g., "удивление, ностальгия").
+   - **User forwards 2-3 example posts they like.**
+4. **Bot generates a sample post in the selected style.**
+5. **User approves or requests modifications.**
+6. **Bot generates a 14-day content plan.**
+7. **User gets options via buttons:**
+   - 📋 "Просмотреть контент-план" (View Content Plan)
+   - ✍ "Создать пост" (Generate a Post - select number)
+   - 🔄 "Сгенерировать новый контент-план" (Generate New Plan)
+
+## 6. GPT PROMPTS
+
+### **Content Plan Generation Prompt**
+```
+Create a 14-day content plan for a Telegram channel. Consider the following details:
+- Channel topic: {channel_topic}
+- Target audience: {target_audience}
+- Additional preferences: {preferences}
+- Desired audience emotions: {emotions}
+- Writing style: {style}
+- Monetization method: {monetization}
+- Specific product/service/course (if applicable): {product_details}
+- Example posts user likes: {example_posts}
+
+Each content item must include:
+1. Post number
+2. Intriguing, clickbait-style title
+3. Short description (1 sentence)
+4. Post goal (engagement, sales, etc.)
+```
+
+### **Post Generation Prompt**
+```
+Create a Telegram post based on the following information:
+- Channel topic: {channel_topic}
+- Target audience: {target_audience}
+- Additional preferences: {preferences}
+- Desired audience emotions: {emotions}
+- Writing style: {style}
+- Monetization method: {monetization}
+- Specific product/service/course (if applicable): {product_details}
+- Example posts user likes: {example_posts}
+- 14-day content plan: {content_plan}
+
+Post requirements:
+- Title: {title_from_plan}
+- Must be highly engaging and natural, using real-world examples, stories, and cases
+- Moderate use of emojis, bold text for key points
+- If monetized via product/service, the post should smoothly guide users toward purchasing
+```
+
+## 7. DATABASE SETUP (SQLite3)
+```python
+import sqlite3
+
+def init_db():
+    conn = sqlite3.connect("bot.db")
+    c = conn.cursor()
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            chat_id INTEGER PRIMARY KEY, 
+            channel_topic TEXT, 
+            target_audience TEXT,
+            monetization TEXT,
+            product_details TEXT
+        )
+    ''')
+    conn.commit()
+    conn.close()
+```
+
+## 8. OPENAI INTEGRATION
+```python
+import openai, os
+openai.api_key = os.getenv("OPENAI_API_KEY")
+
+def generate_text(prompt):
+    response = openai.ChatCompletion.create(
+        model="gpt-4",
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.7
+    )
+    return response.choices[0].message['content'].strip()
+```
+
+## 9. FINAL DEPLOYMENT STEPS
+1. Run `main.py` in Replit.
+2. Test bot in Telegram.
+3. Debug using print logs if needed.
+
+By following this guide, Replit should execute the bot **without errors** from the first attempt.
