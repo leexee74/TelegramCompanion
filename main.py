@@ -41,18 +41,10 @@ def main():
             logger.error("Telegram bot token not found!")
             return
 
-        # Log token validation (without exposing the actual token)
-        logger.info(f"Token loaded, length: {len(TOKEN)}")
-        logger.info("Initializing bot with token...")
-
         # Create the Updater and pass it your bot's token
         updater = Updater(token=TOKEN, use_context=True)
         dispatcher = updater.dispatcher
         logger.info("Bot dispatcher initialized")
-
-        # Verify bot identity
-        me = updater.bot.get_me()
-        logger.info(f"Bot identity verified: @{me.username}")
 
         # Add error handler first
         dispatcher.add_error_handler(error_handler)
@@ -86,7 +78,7 @@ def main():
                     MessageHandler(Filters.text & ~Filters.command, text_handler)
                 ],
                 EMOTIONS: [
-                    MessageHandler(Filters.text & ~Filters.command, text_handler)
+                    MessageHandler((Filters.text | Filters.forwarded) & ~Filters.command, text_handler)
                 ],
                 EXAMPLES: [
                     MessageHandler((Filters.text | Filters.forwarded) & ~Filters.command, text_handler),
@@ -99,7 +91,8 @@ def main():
                 ],
             },
             fallbacks=[CommandHandler('cancel', cancel)],
-            allow_reentry=True
+            allow_reentry=True,
+            name="main_conversation"
         )
 
         # Add handler to dispatcher
@@ -108,7 +101,6 @@ def main():
 
         # Start the Bot with drop_pending_updates to avoid conflicts
         logger.info("Bot starting...")
-        logger.info("Initializing polling...")
         updater.start_polling(drop_pending_updates=True)
         logger.info("Bot started successfully!")
         logger.info("Long polling started, waiting for messages...")

@@ -297,7 +297,7 @@ def text_handler(update: Update, context: CallbackContext) -> int:
         text = update.message.text
         logger.info("============ TEXT RECEIVED ============")
         logger.info(f"Text: {text}")
-        logger.info(f"Waiting for: {context.user_data.get('waiting_for')}")
+        logger.info(f"Current state: {context.user_data.get('waiting_for')}")
         logger.info(f"User data keys: {list(context.user_data.keys())}")
         logger.info("======================================")
 
@@ -319,15 +319,18 @@ def text_handler(update: Update, context: CallbackContext) -> int:
             return AUDIENCE
 
         elif context.user_data.get('waiting_for') == 'audience':
+            logger.info("Processing audience input")
             context.user_data['audience'] = text
             keyboard = create_monetization_keyboard()
             update.message.reply_text(
                 "💰 Выберите метод монетизации:",
                 reply_markup=keyboard
             )
+            logger.info("Audience saved, moving to monetization selection")
             return MONETIZATION
 
         elif context.user_data.get('waiting_for') == 'product_details':
+            logger.info("Processing product details input")
             context.user_data['product_details'] = text
             update.message.reply_text(
                 "🎯 Какие у вас есть дополнительные пожелания к контенту?\n\n"
@@ -337,18 +340,22 @@ def text_handler(update: Update, context: CallbackContext) -> int:
                 "• Табу и ограничения"
             )
             context.user_data['waiting_for'] = 'preferences'
+            logger.info("Product details saved, moving to preferences input")
             return PREFERENCES
 
         elif context.user_data.get('waiting_for') == 'preferences':
+            logger.info("Processing preferences input")
             context.user_data['preferences'] = text
             keyboard = create_style_keyboard()
             update.message.reply_text(
                 "✨ Выберите стиль написания постов:",
                 reply_markup=keyboard
             )
+            logger.info("Preferences saved, moving to style selection")
             return STYLE
 
         elif context.user_data.get('waiting_for') == 'custom_style':
+            logger.info("Processing custom style input")
             context.user_data['style'] = text
             update.message.reply_text(
                 "🎭 Какие эмоции должен вызывать контент у аудитории?\n\n"
@@ -358,22 +365,57 @@ def text_handler(update: Update, context: CallbackContext) -> int:
                 "• Желание действовать"
             )
             context.user_data['waiting_for'] = 'emotions'
+            logger.info("Custom style saved, moving to emotions input")
             return EMOTIONS
 
         elif context.user_data.get('waiting_for') == 'emotions':
-            logger.info("Processing emotions input")
-            context.user_data['emotions'] = text
-            update.message.reply_text(
-                "📝 Отлично! Теперь пришлите примеры постов, которые вам нравятся.\n\n"
-                "После каждого поста вы сможете:\n"
-                "• Добавить еще один пример\n"
-                "• Завершить добавление примеров\n\n"
-                "Пришлите первый пример:"
-            )
-            context.user_data['waiting_for'] = 'examples'
-            context.user_data['examples'] = []
-            logger.info("Emotions saved, moving to examples collection")
-            return EXAMPLES
+            logger.info("============ PROCESSING EMOTIONS ============")
+            logger.info(f"Received emotions text: {text}")
+            logger.info(f"Current user data: {context.user_data}")
+
+            try:
+                # First send confirmation
+                update.message.reply_text("✅ Получил ваши эмоции")
+                logger.info("Sent confirmation message")
+
+                # Save emotions
+                context.user_data['emotions'] = text
+                logger.info(f"Saved emotions: {text}")
+
+                # Send transition message
+                transition_message = (
+                    "📝 Отлично! Теперь пришлите примеры постов, которые вам нравятся.\n\n"
+                    "После каждого поста вы сможете:\n"
+                    "• Добавить еще один пример\n"
+                    "• Завершить добавление примеров\n\n"
+                    "Пришлите первый пример:"
+                )
+                update.message.reply_text(transition_message)
+                logger.info("Sent transition message")
+
+                # Update state
+                context.user_data['waiting_for'] = 'examples'
+                context.user_data['examples'] = []
+                logger.info("Updated state to examples")
+
+                return EXAMPLES
+
+            except Exception as e:
+                logger.error("============ ERROR IN EMOTIONS HANDLER ============")
+                logger.error(f"Error details: {str(e)}")
+                logger.error(f"Current state: {context.user_data.get('waiting_for')}")
+                logger.error(f"User data: {context.user_data}")
+                logger.error("Stack trace:", exc_info=True)
+                logger.error("===============================================")
+
+                try:
+                    update.message.reply_text(
+                        "❌ Произошла ошибка. Пожалуйста, введите эмоции еще раз:"
+                    )
+                    return EMOTIONS
+                except:
+                    logger.error("Failed to send error message", exc_info=True)
+                    return ConversationHandler.END
 
         elif context.user_data.get('waiting_for') == 'post_number':
             try:
@@ -394,7 +436,7 @@ def text_handler(update: Update, context: CallbackContext) -> int:
                         "Чтобы сгенерировать другой пост, введите его номер (1-14):",
                         reply_markup=InlineKeyboardMarkup([[
                             InlineKeyboardButton("🔄 Сгенерировать новый контент-план", 
-                                               callback_data='new_plan')
+                                                callback_data='new_plan')
                         ]])
                     )
                     return POST_NUMBER
@@ -407,10 +449,17 @@ def text_handler(update: Update, context: CallbackContext) -> int:
                 )
                 return POST_NUMBER
 
+        logger.warning(f"Unexpected waiting_for state: {context.user_data.get('waiting_for')}")
         return ConversationHandler.END
 
     except Exception as e:
-        logger.error(f"Error in text_handler: {e}", exc_info=True)
+        logger.error("========== ERROR IN TEXT HANDLER ==========")
+        logger.error(f"Error details: {str(e)}")
+        logger.error(f"Current state: {context.user_data.get('waiting_for')}")
+        logger.error(f"Available user data keys: {list(context.user_data.keys())}")
+        logger.error("Full error details:", exc_info=True)
+        logger.error("=========================================")
+
         update.message.reply_text(
             "❌ Произошла ошибка. Пожалуйста, начните заново с команды /start"
         )
