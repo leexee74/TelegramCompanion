@@ -15,9 +15,25 @@ from handlers import (
 from database import init_db
 from utils import setup_logging
 
-# Set up logging
-setup_logging()
+# Set up logging with more details
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.DEBUG
+)
 logger = logging.getLogger(__name__)
+
+def debug_start(update, context):
+    """Debug start command handler"""
+    logger.info("Debug start command received")
+    logger.info(f"Update: {update}")
+    logger.info(f"Message: {update.message}")
+    logger.info(f"User: {update.effective_user}")
+    update.message.reply_text("Debug start command received. Check logs for details.")
+
+def test_start(update, context):
+    """Test start command handler"""
+    logger.info("Test start command received")
+    update.message.reply_text("Test start command received")
 
 def stop_bot(updater):
     """Stop the bot gracefully."""
@@ -37,6 +53,12 @@ def error_handler(update, context):
     else:
         logger.error('Update "%s" caused error "%s"', update, context.error, exc_info=True)
 
+def message_handler(update, context):
+    """Log all incoming messages"""
+    logger.info(f"Received message: {update.message.text}")
+    logger.info(f"From user: {update.effective_user}")
+    logger.info(f"Chat type: {update.message.chat.type}")
+
 def main():
     """Start the bot."""
     try:
@@ -55,58 +77,24 @@ def main():
         dispatcher = updater.dispatcher
         logger.info("Bot dispatcher initialized")
 
+        # Add debug and test handlers first
+        dispatcher.add_handler(CommandHandler('debug_start', debug_start))
+        dispatcher.add_handler(CommandHandler('test', test_start))
+        logger.info("Debug and test handlers added")
+
         # Store updater in bot_data for access in error handler
         dispatcher.bot_data['updater'] = updater
 
         # Add error handler
         dispatcher.add_error_handler(error_handler)
 
-        # Create conversation handler with proper state management
-        conv_handler = ConversationHandler(
-            entry_points=[CommandHandler('start', start)],
-            states={
-                SUBSCRIPTION_CHECK: [
-                    CallbackQueryHandler(button_handler)
-                ],
-                TOPIC: [
-                    CallbackQueryHandler(button_handler),
-                    MessageHandler(Filters.text & ~Filters.command, text_handler)
-                ],
-                AUDIENCE: [
-                    MessageHandler(Filters.text & ~Filters.command, text_handler)
-                ],
-                MONETIZATION: [
-                    CallbackQueryHandler(button_handler)
-                ],
-                PRODUCT_DETAILS: [
-                    MessageHandler(Filters.text & ~Filters.command, text_handler)
-                ],
-                PREFERENCES: [
-                    MessageHandler(Filters.text & ~Filters.command, text_handler)
-                ],
-                STYLE: [
-                    CallbackQueryHandler(button_handler),
-                    MessageHandler(Filters.text & ~Filters.command, text_handler)
-                ],
-                EMOTIONS: [
-                    MessageHandler(Filters.text & ~Filters.command, text_handler)
-                ],
-                EXAMPLES: [
-                    CallbackQueryHandler(button_handler),
-                    MessageHandler(Filters.text & ~Filters.command, text_handler)
-                ],
-                POST_NUMBER: [
-                    MessageHandler(Filters.text & ~Filters.command, text_handler),
-                    CallbackQueryHandler(button_handler)
-                ],
-            },
-            fallbacks=[CommandHandler('cancel', cancel)],
-            allow_reentry=True
-        )
+        # Add message handler to log all incoming messages
+        dispatcher.add_handler(MessageHandler(Filters.all, message_handler))
+        logger.info("Message handler added")
 
-        # Add handler to dispatcher
-        dispatcher.add_handler(conv_handler)
-        logger.info("Conversation handler added to dispatcher")
+        # Add simple start handler
+        dispatcher.add_handler(CommandHandler('start', debug_start))
+        logger.info("Simple start handler added")
 
         # Start the Bot with drop_pending_updates to avoid conflicts
         logger.info("Bot starting...")
