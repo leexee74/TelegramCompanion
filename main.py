@@ -41,7 +41,8 @@ def main():
         dispatcher.add_error_handler(error_handler)
 
         # Define conversation states
-        TOPIC, AUDIENCE, MONETIZATION, PRODUCT_DETAILS, PREFERENCES, STYLE, EMOTIONS, EXAMPLES = range(8)
+        (TOPIC, AUDIENCE, MONETIZATION, PRODUCT_DETAILS, 
+         PREFERENCES, STYLE, EMOTIONS, EXAMPLES, POST_NUMBER) = range(9)
 
         # Create conversation handler with proper state management
         conv_handler = ConversationHandler(
@@ -73,6 +74,10 @@ def main():
                 EXAMPLES: [
                     CallbackQueryHandler(button_handler),
                     MessageHandler(Filters.text & ~Filters.command, text_handler)
+                ],
+                POST_NUMBER: [
+                    MessageHandler(Filters.text & ~Filters.command, text_handler),
+                    CallbackQueryHandler(button_handler)
                 ],
             },
             fallbacks=[CommandHandler('cancel', cancel)],

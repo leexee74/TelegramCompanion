@@ -24,12 +24,13 @@ def generate_content_plan(user_data: Dict[str, Any]) -> str:
         - Детали продукта/услуги/курса: {user_data.get('product_details', '')}
         - Примеры постов: {user_data.get('examples', '')}
 
-        Каждый пункт контент-плана должен включать:
-        1. Номер поста
-        2. Интригующий заголовок в стиле кликбейт
-        3. Краткое описание (1 предложение)
-        4. Цель поста (вовлечение, продажи и т.д.)
+        Создайте 14 постов, по одному на каждый день. Для каждого поста укажите:
+        1. 🎯 Цель поста: [engagement/продажи/информирование]
+        2. 📢 Заголовок: [интригующий, кликбейтный заголовок]
+        3. 📝 Описание: [краткое описание темы поста в одном предложении]
 
+        Используйте эмодзи и форматирование для лучшей читаемости.
+        Каждый пост должен быть отделен пустой строкой.
         Ответ должен быть на русском языке.
         """
 
@@ -38,15 +39,19 @@ def generate_content_plan(user_data: Dict[str, Any]) -> str:
             messages=[{"role": "user", "content": prompt}],
             temperature=0.7
         )
-        
+
         return response.choices[0].message.content
     except Exception as e:
         logger.error(f"Error generating content plan: {e}")
         raise
 
-def generate_post(user_data: Dict[str, Any]) -> str:
+def generate_post(user_data: Dict[str, Any], post_number: int = None) -> str:
     """Generate a single post using GPT-4."""
     try:
+        content_plan = user_data.get('content_plan', '')
+        posts = content_plan.split('\n\n')
+        selected_post = posts[post_number - 1] if post_number and post_number <= len(posts) else ""
+
         prompt = f"""
         Создайте пост для Telegram канала на основе следующей информации:
         - Тема канала: {user_data.get('topic', '')}
@@ -56,6 +61,9 @@ def generate_post(user_data: Dict[str, Any]) -> str:
         - Стиль написания: {user_data.get('style', '')}
         - Метод монетизации: {user_data.get('monetization', '')}
         - Детали продукта/услуги/курса: {user_data.get('product_details', '')}
+
+        Детали поста из контент-плана:
+        {selected_post}
 
         Требования к посту:
         - Должен быть вовлекающим и естественным
@@ -72,7 +80,7 @@ def generate_post(user_data: Dict[str, Any]) -> str:
             messages=[{"role": "user", "content": prompt}],
             temperature=0.7
         )
-        
+
         return response.choices[0].message.content
     except Exception as e:
         logger.error(f"Error generating post: {e}")

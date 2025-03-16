@@ -22,7 +22,7 @@ def start(update: Update, context: CallbackContext) -> int:
     return TOPIC
 
 def process_examples(update: Update, context: CallbackContext) -> int:
-    """Process collected examples and generate content."""
+    """Process collected examples and generate content plan."""
     try:
         logger.info("Processing examples with data: %s", context.user_data)
 
@@ -32,38 +32,46 @@ def process_examples(update: Update, context: CallbackContext) -> int:
 
         # Show processing message
         message = update.callback_query.message if update.callback_query else update.message
-        message.reply_text("🔄 Обрабатываю примеры и генерирую контент...")
-
-        # Generate sample post
-        logger.info("Generating sample post...")
-        sample_post = generate_post(context.user_data)
-        message.reply_text(
-            "✨ Вот пример поста:\n\n" + sample_post + "\n\n🔄 Генерирую контент-план..."
-        )
+        message.reply_text("🔄 Генерирую контент-план на 14 дней...")
 
         # Generate and save content plan
         logger.info("Generating content plan...")
         content_plan = generate_content_plan(context.user_data)
         context.user_data['content_plan'] = content_plan
-        save_user_data(update.effective_chat.id, context.user_data)
 
-        # Show options for next steps
-        keyboard = [
-            [InlineKeyboardButton("📋 Просмотреть контент-план", callback_data='view_plan')],
-            [InlineKeyboardButton("✍ Создать пост", callback_data='create_post')],
-            [InlineKeyboardButton("🔄 Сгенерировать новый контент-план", callback_data='new_plan')]
-        ]
+        # Format and display content plan
+        formatted_plan = "📋 Контент-план на 14 дней:\n\n"
+        for i, post in enumerate(content_plan.split('\n\n'), 1):
+            if post.strip():
+                formatted_plan += f"📝 Пост #{i}:\n{post}\n\n"
+
+        # Split long message if needed
+        if len(formatted_plan) > 4000:
+            # Send plan in parts
+            for i in range(0, len(formatted_plan), 4000):
+                message.reply_text(formatted_plan[i:i+4000])
+        else:
+            message.reply_text(formatted_plan)
+
+        # Show options for post generation
         message.reply_text(
-            "✅ Контент-план готов! Что делаем дальше?",
-            reply_markup=InlineKeyboardMarkup(keyboard)
+            "✍️ Чтобы сгенерировать полный текст поста, "
+            "введите его номер (от 1 до 14):",
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("🔄 Сгенерировать новый контент-план", 
+                                   callback_data='new_plan')
+            ]])
         )
+
+        context.user_data['waiting_for'] = 'post_number'
         return ConversationHandler.END
 
     except Exception as e:
-        logger.error(f"Error generating content: {e}")
+        logger.error(f"Error generating content plan: {e}")
         message = update.callback_query.message if update.callback_query else update.message
         message.reply_text(
-            "❌ Произошла ошибка при генерации контента. Попробуйте еще раз позже."
+            "❌ Произошла ошибка при генерации контент-плана. "
+            "Попробуйте еще раз позже."
         )
         return ConversationHandler.END
 
@@ -131,7 +139,33 @@ def text_handler(update: Update, context: CallbackContext) -> int:
     logger.info(f"Received text: {text}")
     logger.info(f"Current waiting_for: {context.user_data.get('waiting_for')}")
 
-    if context.user_data.get('waiting_for') == 'examples':
+    if context.user_data.get('waiting_for') == 'post_number':
+        try:
+            post_number = int(text)
+            if 1 <= post_number <= 14:
+                update.message.reply_text("🔄 Генерирую пост...")
+                generated_post = generate_post(context.user_data, post_number)
+                update.message.reply_text(
+                    f"✨ Готово! Вот ваш пост #{post_number}:\n\n{generated_post}\n\n"
+                    "Чтобы сгенерировать другой пост, введите его номер (1-14):",
+                    reply_markup=InlineKeyboardMarkup([[
+                        InlineKeyboardButton("🔄 Сгенерировать новый контент-план", 
+                                           callback_data='new_plan')
+                    ]])
+                )
+                return ConversationHandler.END
+            else:
+                update.message.reply_text(
+                    "❌ Пожалуйста, введите число от 1 до 14."
+                )
+                return ConversationHandler.END
+        except ValueError:
+            update.message.reply_text(
+                "❌ Пожалуйста, введите корректный номер поста (число от 1 до 14)."
+            )
+            return ConversationHandler.END
+
+    elif context.user_data.get('waiting_for') == 'examples':
         logger.info(f"Processing example post #{len(context.user_data.get('examples', []))}")
         # Add the example to the list
         if 'examples' not in context.user_data:
