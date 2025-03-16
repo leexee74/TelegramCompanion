@@ -1,6 +1,15 @@
 import logging
 import os
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
+from telegram.ext import (
+    Updater, CommandHandler, MessageHandler, Filters,
+    CallbackQueryHandler, ConversationHandler
+)
+from handlers import (
+    start, button_handler, text_handler, cancel,
+    SUBSCRIPTION_CHECK, TOPIC, AUDIENCE, MONETIZATION,
+    PRODUCT_DETAILS, PREFERENCES, STYLE, EMOTIONS,
+    EXAMPLES, POST_NUMBER
+)
 
 # Set up logging with more details
 logging.basicConfig(
@@ -8,38 +17,6 @@ logging.basicConfig(
     level=logging.DEBUG
 )
 logger = logging.getLogger(__name__)
-
-def test_start(update, context):
-    """Test start command handler"""
-    logger.info("============ TEST COMMAND RECEIVED ============")
-    logger.info(f"Update: {update}")
-    logger.info(f"Message: {update.message}")
-    logger.info(f"User: {update.effective_user}")
-    logger.info(f"Chat ID: {update.effective_chat.id}")
-    logger.info("=============================================")
-
-    try:
-        update.message.reply_text("Тестовая команда получена")
-        logger.info("Reply sent successfully")
-    except Exception as e:
-        logger.error(f"Error sending reply: {e}", exc_info=True)
-
-def log_all_updates(update, context):
-    """Log all updates from Telegram"""
-    logger.info("============ NEW UPDATE RECEIVED ============")
-    logger.info(f"Update type: {update.effective_message.type if update.effective_message else 'Unknown'}")
-    logger.info(f"Update ID: {update.update_id}")
-    logger.info(f"Message: {update.message}")
-    logger.info(f"User: {update.effective_user}")
-    logger.info("===========================================")
-
-    # Try to send a response to show the bot is working
-    try:
-        if update.message and update.message.text:
-            update.message.reply_text(f"Получено сообщение: {update.message.text}")
-            logger.info("Successfully sent reply to message")
-    except Exception as e:
-        logger.error(f"Error replying to message: {e}", exc_info=True)
 
 def error_handler(update, context):
     """Log Errors caused by Updates."""
@@ -75,15 +52,52 @@ def main():
         dispatcher.add_error_handler(error_handler)
         logger.info("Error handler added")
 
-        # Add a general update handler to log everything in group 1
-        # This ensures it runs after command handlers but captures all updates
-        dispatcher.add_handler(MessageHandler(Filters.all & ~Filters.command, log_all_updates), group=1)
-        logger.info("Update logging handler added")
+        # Create conversation handler with proper state management
+        conv_handler = ConversationHandler(
+            entry_points=[CommandHandler('start', start)],
+            states={
+                SUBSCRIPTION_CHECK: [
+                    CallbackQueryHandler(button_handler, pattern='^check_subscription$')
+                ],
+                TOPIC: [
+                    CallbackQueryHandler(button_handler, pattern='^start_work$'),
+                    MessageHandler(Filters.text & ~Filters.command, text_handler)
+                ],
+                AUDIENCE: [
+                    MessageHandler(Filters.text & ~Filters.command, text_handler)
+                ],
+                MONETIZATION: [
+                    CallbackQueryHandler(button_handler, pattern='^(advertising|products|services|consulting)$')
+                ],
+                PRODUCT_DETAILS: [
+                    MessageHandler(Filters.text & ~Filters.command, text_handler)
+                ],
+                PREFERENCES: [
+                    MessageHandler(Filters.text & ~Filters.command, text_handler)
+                ],
+                STYLE: [
+                    CallbackQueryHandler(button_handler, pattern='^(aggressive|business|humorous|custom)$'),
+                    MessageHandler(Filters.text & ~Filters.command, text_handler)
+                ],
+                EMOTIONS: [
+                    MessageHandler(Filters.text & ~Filters.command, text_handler)
+                ],
+                EXAMPLES: [
+                    CallbackQueryHandler(button_handler),
+                    MessageHandler(Filters.text & ~Filters.command, text_handler)
+                ],
+                POST_NUMBER: [
+                    MessageHandler(Filters.text & ~Filters.command, text_handler),
+                    CallbackQueryHandler(button_handler, pattern='^new_plan$')
+                ],
+            },
+            fallbacks=[CommandHandler('cancel', cancel)],
+            allow_reentry=True
+        )
 
-        # Add command handlers in group 0 (default)
-        dispatcher.add_handler(CommandHandler('test', test_start))
-        dispatcher.add_handler(CommandHandler('start', test_start))  # Using test_start for both commands
-        logger.info("Command handlers added")
+        # Add handler to dispatcher
+        dispatcher.add_handler(conv_handler)
+        logger.info("Conversation handler added")
 
         # Start the Bot with drop_pending_updates to avoid conflicts
         logger.info("Bot starting...")
