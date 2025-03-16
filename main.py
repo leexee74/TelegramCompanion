@@ -6,7 +6,12 @@ from telegram.ext import (
     MessageHandler, Filters, ConversationHandler
 )
 from telegram.error import Conflict, TelegramError
-from handlers import start, button_handler, text_handler, cancel, TOPIC, AUDIENCE, MONETIZATION, PRODUCT_DETAILS, PREFERENCES, STYLE, EMOTIONS, EXAMPLES, POST_NUMBER, SUBSCRIPTION_CHECK
+from handlers import (
+    start, button_handler, text_handler, cancel,
+    TOPIC, AUDIENCE, MONETIZATION, PRODUCT_DETAILS,
+    PREFERENCES, STYLE, EMOTIONS, EXAMPLES, POST_NUMBER,
+    SUBSCRIPTION_CHECK
+)
 from database import init_db
 from utils import setup_logging
 
@@ -25,28 +30,30 @@ def error_handler(update, context):
     """Log Errors caused by Updates."""
     if isinstance(context.error, Conflict):
         logger.error("Conflict error: Multiple bot instances detected")
-        # Stop this instance if a conflict is detected
         if hasattr(context, 'bot_data') and 'updater' in context.bot_data:
             stop_bot(context.bot_data['updater'])
     elif isinstance(context.error, TelegramError):
         logger.error(f"Telegram error: {context.error}")
     else:
-        logger.warning('Update "%s" caused error "%s"', update, context.error)
+        logger.error('Update "%s" caused error "%s"', update, context.error, exc_info=True)
 
 def main():
-    # Initialize the bot
-    TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-    if not TOKEN:
-        logger.error("Telegram bot token not found!")
-        return
-
-    # Initialize database
-    init_db()
-
+    """Start the bot."""
     try:
-        # Create the Updater and pass it your bot's token.
+        # Initialize the bot
+        TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+        if not TOKEN:
+            logger.error("Telegram bot token not found!")
+            return
+
+        # Initialize database
+        init_db()
+        logger.info("Database initialized")
+
+        # Create the Updater and pass it your bot's token
         updater = Updater(token=TOKEN, use_context=True)
         dispatcher = updater.dispatcher
+        logger.info("Bot dispatcher initialized")
 
         # Store updater in bot_data for access in error handler
         dispatcher.bot_data['updater'] = updater
@@ -99,6 +106,7 @@ def main():
 
         # Add handler to dispatcher
         dispatcher.add_handler(conv_handler)
+        logger.info("Conversation handler added to dispatcher")
 
         # Start the Bot with drop_pending_updates to avoid conflicts
         logger.info("Bot starting...")
@@ -116,7 +124,7 @@ def main():
         updater.idle()
 
     except Exception as e:
-        logger.error(f"Fatal error: {e}")
+        logger.error(f"Fatal error: {e}", exc_info=True)
         raise
 
 if __name__ == '__main__':
