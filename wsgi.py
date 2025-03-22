@@ -39,4 +39,6 @@ logger.info("All required environment variables are present")
 
 # This is the application variable that Gunicorn expects
 application = app
+# Also expose as 'app' for compatibility
+app = application
 logger.info("WSGI application initialized successfully")

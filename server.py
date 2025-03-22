@@ -3,6 +3,7 @@ import logging
 import os
 import sys
 import threading
+import time
 from main import run_telegram_bot
 
 # Set up logging
@@ -25,6 +26,27 @@ def check_required_vars():
         return False
     return True
 
+def start_bot_with_retry(max_retries=3, retry_delay=5):
+    """Start Telegram bot with retry logic."""
+    retries = 0
+    while retries < max_retries:
+        try:
+            run_telegram_bot()
+            break
+        except Exception as e:
+            if "Conflict: terminated by other getUpdates request" in str(e):
+                logger.warning(f"Bot conflict detected (attempt {retries + 1}/{max_retries}). Retrying in {retry_delay} seconds...")
+                time.sleep(retry_delay)
+                retries += 1
+            else:
+                logger.error(f"Fatal bot error: {e}", exc_info=True)
+                raise
+
+    if retries >= max_retries:
+        logger.error("Failed to start bot after maximum retries")
+        return False
+    return True
+
 if __name__ == "__main__":
     try:
         # Check environment variables
@@ -34,8 +56,8 @@ if __name__ == "__main__":
 
         logger.info("Starting application components...")
 
-        # Start Telegram bot in a separate thread
-        bot_thread = threading.Thread(target=run_telegram_bot)
+        # Start Telegram bot in a separate thread with retry logic
+        bot_thread = threading.Thread(target=start_bot_with_retry)
         bot_thread.daemon = True
         bot_thread.start()
         logger.info("Telegram bot thread started successfully")

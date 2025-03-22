@@ -1,6 +1,7 @@
 import logging
 import os
 import sys
+import time
 from telegram.ext import (
     Updater, CommandHandler, MessageHandler, Filters,
     CallbackQueryHandler, ConversationHandler
@@ -108,10 +109,22 @@ def run_telegram_bot():
         dispatcher.add_handler(conv_handler)
         logger.info("Conversation handler added")
 
-        # Start the Bot
-        logger.info("Bot starting...")
-        _updater.start_polling(drop_pending_updates=True)
-        logger.info("Bot started successfully!")
+        # Start the Bot with error handling for conflicts
+        def start_polling():
+            try:
+                logger.info("Bot starting...")
+                _updater.start_polling(drop_pending_updates=True)
+                logger.info("Bot started successfully!")
+            except Exception as e:
+                if "Conflict: terminated by other getUpdates request" in str(e):
+                    logger.warning("Conflict detected with another bot instance. Retrying in 5 seconds...")
+                    time.sleep(5)
+                    start_polling()
+                else:
+                    logger.error(f"Failed to start bot: {e}", exc_info=True)
+                    raise
+
+        start_polling()
 
     except Exception as e:
         logger.error(f"Fatal error: {e}", exc_info=True)

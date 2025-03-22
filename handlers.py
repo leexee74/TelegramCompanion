@@ -72,12 +72,14 @@ def handle_main_menu(update: Update, context: CallbackContext) -> int:
         query.answer()
 
         logger.info("============ MAIN MENU HANDLER ============")
+        logger.info(f"User ID: {update.effective_user.id}")
         logger.info(f"Button pressed: {query.data}")
         logger.info("==========================================")
 
         if query.data == 'content_plan':
             # Start content plan flow
             context.user_data.clear()
+            logger.info("Starting content plan flow")
             query.message.edit_text(
                 "📋 Давайте создадим контент-план!\n\n"
                 "Для начала, укажите тематику вашего канала:",
@@ -132,6 +134,12 @@ def handle_main_menu(update: Update, context: CallbackContext) -> int:
 def handle_content_topic(update: Update, context: CallbackContext) -> int:
     """Handle topic input for content plan."""
     try:
+        # Log incoming message
+        logger.info(f"============ CONTENT TOPIC HANDLER ============")
+        logger.info(f"User ID: {update.effective_user.id}")
+        logger.info(f"Message text: {update.message.text}")
+        logger.info("=============================================")
+
         # Save topic info
         context.user_data['topic'] = update.message.text
         logger.info(f"Saved topic info: {update.message.text}")
@@ -154,6 +162,12 @@ def handle_content_topic(update: Update, context: CallbackContext) -> int:
 def handle_content_audience(update: Update, context: CallbackContext) -> int:
     """Handle audience input for content plan."""
     try:
+        # Log incoming message
+        logger.info(f"============ CONTENT AUDIENCE HANDLER ============")
+        logger.info(f"User ID: {update.effective_user.id}")
+        logger.info(f"Message text: {update.message.text}")
+        logger.info("===============================================")
+
         # Save audience info
         context.user_data['audience'] = update.message.text
         logger.info(f"Saved audience info: {update.message.text}")
@@ -176,6 +190,12 @@ def handle_content_audience(update: Update, context: CallbackContext) -> int:
 def handle_content_monetization(update: Update, context: CallbackContext) -> int:
     """Handle monetization input for content plan."""
     try:
+        # Log incoming message
+        logger.info(f"============ CONTENT MONETIZATION HANDLER ============")
+        logger.info(f"User ID: {update.effective_user.id}")
+        logger.info(f"Message text: {update.message.text}")
+        logger.info("=================================================")
+
         # Save monetization info
         context.user_data['monetization'] = update.message.text
         logger.info(f"Saved monetization info: {update.message.text}")
@@ -198,17 +218,32 @@ def handle_content_monetization(update: Update, context: CallbackContext) -> int
 def handle_content_product(update: Update, context: CallbackContext) -> int:
     """Handle product details input for content plan."""
     try:
+        # Log incoming message
+        logger.info(f"============ CONTENT PRODUCT HANDLER ============")
+        logger.info(f"User ID: {update.effective_user.id}")
+        logger.info(f"Message text: {update.message.text}")
+        logger.info("=============================================")
+
         # Save product details
         context.user_data['product_details'] = update.message.text
         logger.info(f"Saved product details: {update.message.text}")
 
         # Generate content plan
         update.message.reply_text("🔄 Генерирую контент-план...")
+
+        # Log before generating content plan
+        logger.info("Generating content plan with data:")
+        logger.info(context.user_data)
+
         content_plan = generate_content_plan(context.user_data)
+
+        # Log after generating content plan
+        logger.info("Content plan generated successfully")
 
         # Save content plan to database
         user_id = update.effective_user.id
         save_user_data(user_id, context.user_data)
+        logger.info(f"Saved user data to database for user {user_id}")
 
         # Send the result and return to main menu
         update.message.reply_text(
