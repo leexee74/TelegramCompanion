@@ -24,7 +24,7 @@ def start(update: Update, context: CallbackContext) -> int:
     """Start the conversation and check subscription."""
     try:
         user_id = update.effective_user.id
-        logger.info(f"============ START COMMAND ============")
+        logger.info("============ NEW START HANDLER INVOKED ============")
         logger.info(f"User ID: {user_id}")
         logger.info(f"Chat ID: {update.effective_chat.id}")
         logger.info("=======================================")
@@ -38,22 +38,30 @@ def start(update: Update, context: CallbackContext) -> int:
         logger.info(f"Subscription check result for user {user_id}: {is_subscribed}")
 
         if not is_subscribed:
-            reply_markup = create_subscription_keyboard()
-            logger.info("Sending subscription check message")
+            keyboard = create_subscription_keyboard()
+            logger.info("Created subscription keyboard")
             update.message.reply_text(
                 "👋 Для использования бота необходимо подписаться на канал @expert_buyanov",
-                reply_markup=reply_markup
+                reply_markup=keyboard
             )
             return SUBSCRIPTION_CHECK
 
-        # Show main menu
-        main_menu_keyboard = create_main_menu_keyboard()
-        logger.info(f"Created main menu keyboard: {main_menu_keyboard.to_dict()}")
-        update.message.reply_text(
-            "👋 Выберите действие:",
-            reply_markup=main_menu_keyboard
+        # Show main menu with full description
+        keyboard = create_main_menu_keyboard()
+        logger.info(f"Created main menu keyboard with buttons: {[btn.text for row in keyboard.inline_keyboard for btn in row]}")
+        menu_text = (
+            "👋 Выберите действие:\n\n"
+            "📋 Контент-план / Посты - создание контент-плана\n"
+            "🎯 Переупаковка продукта - создание продающего описания\n"
+            "🔄 Начать заново - сброс настроек"
         )
-        logger.info("Sent main menu message")
+
+        logger.info("Sending menu message with text:")
+        logger.info(menu_text)
+
+        update.message.reply_text(menu_text, reply_markup=keyboard)
+        logger.info("Successfully sent main menu message")
+
         return MAIN_MENU
 
     except Exception as e:
@@ -182,10 +190,16 @@ def button_handler(update: Update, context: CallbackContext) -> int:
         if query.data == 'check_subscription':
             is_subscribed = check_subscription(context, update.effective_user.id)
             if is_subscribed:
+                # Show main menu
+                keyboard = create_main_menu_keyboard()
+                menu_text = (
+                    "📋 Контент-план / Посты - создание контент-плана\n"
+                    "🎯 Переупаковка продукта - создание продающего описания\n"
+                    "🔄 Начать заново - сброс настроек"
+                )
                 query.message.reply_text(
-                    "✅ Отлично! Теперь можно начать работу.\n\n"
-                    "Выберите действие:",
-                    reply_markup=create_main_menu_keyboard()
+                    f"✅ Отлично! Теперь можно начать работу.\n\n{menu_text}",
+                    reply_markup=keyboard
                 )
                 return MAIN_MENU
             else:
@@ -197,143 +211,19 @@ def button_handler(update: Update, context: CallbackContext) -> int:
                 return SUBSCRIPTION_CHECK
 
         elif query.data == 'back_to_menu':
-            query.message.reply_text("Вы вернулись в главное меню.", reply_markup=create_main_menu_keyboard())
+            keyboard = create_main_menu_keyboard()
+            menu_text = (
+                "📋 Контент-план / Посты - создание контент-плана\n"
+                "🎯 Переупаковка продукта - создание продающего описания\n"
+                "🔄 Начать заново - сброс настроек"
+            )
+            query.message.reply_text(
+                f"Вы вернулись в главное меню.\n\n{menu_text}",
+                reply_markup=keyboard
+            )
             return MAIN_MENU
 
-
-        # Handle start work button (moved to main menu)
-        elif query.data == 'start_work': #This is redundant now.
-            query.message.reply_text(
-                "📝 Какая тема вашего канала?\n\n"
-                "Опишите основную тематику и направленность канала.\n"
-                "Например: бизнес, психология, здоровье, технологии и т.д.\n\n"
-                "Напишите краткое описание темы:"
-            )
-            context.user_data['waiting_for'] = 'topic'
-            logger.info("Requested channel topic")
-            return TOPIC
-
-        # Handle monetization options
-        elif query.data in ['advertising', 'products', 'services', 'consulting']:
-            context.user_data['monetization'] = query.data
-            if query.data != 'advertising':
-                query.message.reply_text(
-                    "🎯 Опишите ваш продукт/услугу/курс подробнее:\n\n"
-                    "Укажите основные характеристики, преимущества и особенности."
-                )
-                context.user_data['waiting_for'] = 'product_details'
-                return PRODUCT_DETAILS
-            else:
-                query.message.reply_text(
-                    "🎯 Какие у вас есть дополнительные пожелания к контенту?\n\n"
-                    "Например:\n"
-                    "• Особый формат подачи\n"
-                    "• Специфические темы\n"
-                    "• Табу и ограничения"
-                )
-                context.user_data['waiting_for'] = 'preferences'
-                return PREFERENCES
-
-        # Handle writing style selection
-        elif query.data in ['aggressive', 'business', 'humorous', 'custom']:
-            context.user_data['style'] = query.data
-            if query.data == 'custom':
-                query.message.reply_text(
-                    "✍ Опишите ваш стиль:\n\n"
-                    "Укажите особенности подачи материала, тон общения и другие важные детали."
-                )
-                context.user_data['waiting_for'] = 'custom_style'
-                return STYLE
-
-            query.message.reply_text(
-                "🎭 Какие эмоции должен вызывать контент у аудитории?\n\n"
-                "Например:\n"
-                "• Доверие\n"
-                "• Интерес\n"
-                "• Желание действовать"
-            )
-            context.user_data['waiting_for'] = 'emotions'
-            return EMOTIONS
-
-        # Handle add example
-        elif query.data == 'add_example':
-            logger.info("User requested to add another example")
-            query.message.reply_text("📝 Хорошо, пришлите следующий пример поста.")
-            return EXAMPLES
-
-        # Handle finish examples
-        elif query.data == 'finish_examples':
-            logger.info("User requested to finish adding examples")
-            if not context.user_data.get('examples', []):
-                query.message.reply_text(
-                    "❌ Пожалуйста, пришлите хотя бы один пример поста."
-                )
-                return EXAMPLES
-
-            try:
-                # Verify all required data is present
-                required_fields = ['topic', 'audience', 'monetization', 'style', 'emotions']
-                missing_fields = [field for field in required_fields if not context.user_data.get(field)]
-
-                if missing_fields:
-                    logger.error(f"Missing required fields: {missing_fields}")
-                    query.message.reply_text(
-                        "❌ Не хватает некоторых данных. Пожалуйста, начните заново с команды /start"
-                    )
-                    return ConversationHandler.END
-
-                query.message.reply_text("🔄 Генерирую контент-план на 14 дней...")
-
-                # Extract text from examples
-                examples_text = [example['text'] for example in context.user_data.get('examples', [])]
-                context.user_data['examples_text'] = examples_text
-
-                # Generate and save content plan
-                content_plan = generate_content_plan(context.user_data)
-                context.user_data['content_plan'] = content_plan
-                save_user_data(update.effective_chat.id, context.user_data)
-
-                # Format and display content plan
-                formatted_plan = "📋 Контент-план на 14 дней:\n\n"
-                formatted_plan += content_plan
-
-                # Split long message if needed
-                if len(formatted_plan) > 4000:
-                    parts = [formatted_plan[i:i+4000] for i in range(0, len(formatted_plan), 4000)]
-                    for part in parts:
-                        query.message.reply_text(part)
-                else:
-                    query.message.reply_text(formatted_plan)
-
-                # Show options for post generation
-                query.message.reply_text(
-                    "✍️ Чтобы сгенерировать полный текст поста, "
-                    "введите его номер (от 1 до 14):",
-                    reply_markup=InlineKeyboardMarkup([[
-                        InlineKeyboardButton("🔄 Сгенерировать новый контент-план", 
-                                           callback_data='new_plan')
-                    ]])
-                )
-                context.user_data['waiting_for'] = 'post_number'
-                return POST_NUMBER
-
-            except Exception as e:
-                logger.exception("Error in finish_examples:")
-                query.message.reply_text(
-                    "❌ Произошла ошибка при генерации контент-плана. "
-                    "Пожалуйста, попробуйте еще раз или начните заново с команды /start"
-                )
-                return EXAMPLES
-
-        # Handle new plan request
-        elif query.data == 'new_plan':
-            logger.info("User requested new content plan")
-            query.message.reply_text("📝 Какая тема вашего канала?")
-            context.user_data.clear()
-            context.user_data['waiting_for'] = 'topic'
-            return TOPIC
-
-        return ConversationHandler.END
+        return MAIN_MENU #This line added to ensure consistent return to MAIN_MENU for all other buttons
 
     except Exception as e:
         logger.error(f"Error in button_handler: {e}", exc_info=True)

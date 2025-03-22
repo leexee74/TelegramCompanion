@@ -5,7 +5,6 @@ from telegram.ext import (
     Updater, CommandHandler, MessageHandler, Filters,
     CallbackQueryHandler, ConversationHandler
 )
-from database import init_db
 from handlers import (
     start, button_handler, text_handler, cancel,
     handle_main_menu, handle_repackage_audience,
@@ -40,15 +39,13 @@ def run_telegram_bot():
     """Start the bot."""
     global _updater
     try:
-        # Initialize database
-        init_db()
-        logger.info("Database initialized")
-
         # Initialize the bot
         TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
         if not TOKEN:
             logger.error("Telegram bot token not found!")
             return
+
+        logger.info("Starting new bot instance...")
 
         # Create the Updater and pass it your bot's token
         _updater = Updater(token=TOKEN, use_context=True)
@@ -59,9 +56,11 @@ def run_telegram_bot():
         dispatcher.add_error_handler(error_handler)
         logger.info("Error handler added")
 
-        # Create conversation handler
+        # Create conversation handler with states
         conv_handler = ConversationHandler(
-            entry_points=[CommandHandler('start', start)],
+            entry_points=[
+                CommandHandler('start', start)
+            ],
             states={
                 SUBSCRIPTION_CHECK: [
                     CallbackQueryHandler(button_handler, pattern='^check_subscription$')
@@ -100,7 +99,7 @@ def run_telegram_bot():
                     CallbackQueryHandler(button_handler, pattern='^back_to_menu$')
                 ],
                 EXAMPLES: [
-                    MessageHandler((Filters.text | Filters.forwarded) & ~Filters.command, text_handler),
+                    MessageHandler(Filters.text & ~Filters.command, text_handler),
                     CallbackQueryHandler(button_handler, pattern='^add_example$'),
                     CallbackQueryHandler(button_handler, pattern='^finish_examples$'),
                     CallbackQueryHandler(button_handler, pattern='^back_to_menu$')
@@ -110,7 +109,6 @@ def run_telegram_bot():
                     MessageHandler(Filters.text & ~Filters.command, text_handler),
                     CallbackQueryHandler(button_handler, pattern='^back_to_menu$')
                 ],
-                # New states for product repackaging
                 REPACKAGE_AUDIENCE: [
                     MessageHandler(Filters.text & ~Filters.command, handle_repackage_audience),
                     CallbackQueryHandler(button_handler, pattern='^back_to_menu$')
@@ -122,11 +120,10 @@ def run_telegram_bot():
                 REPACKAGE_RESULT: [
                     MessageHandler(Filters.text & ~Filters.command, handle_repackage_result),
                     CallbackQueryHandler(button_handler, pattern='^back_to_menu$')
-                ],
+                ]
             },
             fallbacks=[CommandHandler('cancel', cancel)],
-            allow_reentry=True,
-            name="main_conversation"
+            allow_reentry=True
         )
 
         # Add handler to dispatcher
