@@ -6,16 +6,11 @@ from telegram.ext import (
     CallbackQueryHandler, ConversationHandler
 )
 from handlers import (
-    start, button_handler, text_handler, cancel,
-    handle_main_menu, handle_repackage_audience,
-    handle_repackage_tool, handle_repackage_result,
-    SUBSCRIPTION_CHECK, MAIN_MENU, TOPIC, AUDIENCE,
-    MONETIZATION, PRODUCT_DETAILS, PREFERENCES, STYLE,
-    EMOTIONS, EXAMPLES, POST_NUMBER,
-    REPACKAGE_AUDIENCE, REPACKAGE_TOOL, REPACKAGE_RESULT
+    start, button_handler, cancel,
+    SUBSCRIPTION_CHECK, MAIN_MENU
 )
 
-# Set up more detailed logging
+# Set up logging
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.DEBUG,
@@ -45,6 +40,12 @@ def run_telegram_bot():
             logger.error("Telegram bot token not found!")
             return
 
+        # Clear any existing updater
+        if _updater:
+            logger.info("Stopping existing bot instance...")
+            _updater.stop()
+            _updater = None
+
         logger.info("Starting new bot instance...")
 
         # Create the Updater and pass it your bot's token
@@ -58,68 +59,13 @@ def run_telegram_bot():
 
         # Create conversation handler with states
         conv_handler = ConversationHandler(
-            entry_points=[
-                CommandHandler('start', start)
-            ],
+            entry_points=[CommandHandler('start', start)],
             states={
                 SUBSCRIPTION_CHECK: [
                     CallbackQueryHandler(button_handler, pattern='^check_subscription$')
                 ],
                 MAIN_MENU: [
-                    CallbackQueryHandler(handle_main_menu),
-                    CallbackQueryHandler(button_handler, pattern='^back_to_menu$')
-                ],
-                TOPIC: [
-                    MessageHandler(Filters.text & ~Filters.command, text_handler),
-                    CallbackQueryHandler(button_handler, pattern='^back_to_menu$')
-                ],
-                AUDIENCE: [
-                    MessageHandler(Filters.text & ~Filters.command, text_handler),
-                    CallbackQueryHandler(button_handler, pattern='^back_to_menu$')
-                ],
-                MONETIZATION: [
-                    CallbackQueryHandler(button_handler, pattern='^(advertising|products|services|consulting)$'),
-                    CallbackQueryHandler(button_handler, pattern='^back_to_menu$')
-                ],
-                PRODUCT_DETAILS: [
-                    MessageHandler(Filters.text & ~Filters.command, text_handler),
-                    CallbackQueryHandler(button_handler, pattern='^back_to_menu$')
-                ],
-                PREFERENCES: [
-                    MessageHandler(Filters.text & ~Filters.command, text_handler),
-                    CallbackQueryHandler(button_handler, pattern='^back_to_menu$')
-                ],
-                STYLE: [
-                    CallbackQueryHandler(button_handler, pattern='^(aggressive|business|humorous|custom)$'),
-                    MessageHandler(Filters.text & ~Filters.command, text_handler),
-                    CallbackQueryHandler(button_handler, pattern='^back_to_menu$')
-                ],
-                EMOTIONS: [
-                    MessageHandler(Filters.text & ~Filters.command, text_handler),
-                    CallbackQueryHandler(button_handler, pattern='^back_to_menu$')
-                ],
-                EXAMPLES: [
-                    MessageHandler(Filters.text & ~Filters.command, text_handler),
-                    CallbackQueryHandler(button_handler, pattern='^add_example$'),
-                    CallbackQueryHandler(button_handler, pattern='^finish_examples$'),
-                    CallbackQueryHandler(button_handler, pattern='^back_to_menu$')
-                ],
-                POST_NUMBER: [
-                    CallbackQueryHandler(button_handler, pattern='^new_plan$'),
-                    MessageHandler(Filters.text & ~Filters.command, text_handler),
-                    CallbackQueryHandler(button_handler, pattern='^back_to_menu$')
-                ],
-                REPACKAGE_AUDIENCE: [
-                    MessageHandler(Filters.text & ~Filters.command, handle_repackage_audience),
-                    CallbackQueryHandler(button_handler, pattern='^back_to_menu$')
-                ],
-                REPACKAGE_TOOL: [
-                    MessageHandler(Filters.text & ~Filters.command, handle_repackage_tool),
-                    CallbackQueryHandler(button_handler, pattern='^back_to_menu$')
-                ],
-                REPACKAGE_RESULT: [
-                    MessageHandler(Filters.text & ~Filters.command, handle_repackage_result),
-                    CallbackQueryHandler(button_handler, pattern='^back_to_menu$')
+                    CallbackQueryHandler(button_handler)
                 ]
             },
             fallbacks=[CommandHandler('cancel', cancel)],
