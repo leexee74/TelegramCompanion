@@ -15,8 +15,7 @@ def check_required_vars():
 
 if __name__ == "__main__":
     if check_required_vars():
-        # Start Flask app in development mode with reloader disabled
-        # to prevent duplicate bot instances
-        app.run(host='0.0.0.0', port=5000, debug=True, use_reloader=False)
+        # Start Flask app in development mode
+        app.run(host='0.0.0.0', port=5000, debug=True)
     else:
         logger.error("Cannot start server: missing required environment variables")

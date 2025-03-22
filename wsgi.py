@@ -26,12 +26,12 @@ def start_bot():
     try:
         _bot_thread = threading.Thread(target=run_telegram_bot, daemon=True)
         _bot_thread.start()
-        logger.info("Telegram bot thread started successfully")
+        logger.info("Bot started successfully")
     except Exception as e:
-        logger.error(f"Failed to start bot thread: {e}")
+        logger.error(f"Failed to start bot: {e}")
         raise
 
-# Initialize bot when running under Gunicorn
+# Only initialize bot when running under Gunicorn
 if os.environ.get('GUNICORN_CMD_ARGS'):
     if check_required_vars():
         try:
@@ -40,3 +40,6 @@ if os.environ.get('GUNICORN_CMD_ARGS'):
         except Exception as e:
             logger.error(f"Failed to initialize bot: {e}")
             sys.exit(1)
+
+# This is required for Gunicorn to find the app
+application = app
