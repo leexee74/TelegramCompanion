@@ -106,7 +106,7 @@ def run_telegram_bot():
         dispatcher.add_handler(conv_handler)
         logger.info("Conversation handler added")
 
-        # Start the Bot
+        # Start the Bot without idle() to avoid signal handling issues
         logger.info("Bot starting...")
         _updater.start_polling(drop_pending_updates=True)
         logger.info("Bot started successfully!")
