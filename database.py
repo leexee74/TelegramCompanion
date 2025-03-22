@@ -83,57 +83,6 @@ def get_user_preferences(chat_id: int) -> dict:
         logger.error(f"Error retrieving user preferences: {e}")
         return {}
 
-def save_scheduled_message(step_order: int, message_type: str, content: str, 
-                         media_url: str = None, delay_minutes: int = 0) -> int:
-    """Save a scheduled message to the database."""
-    try:
-        query = text("""
-            INSERT INTO scheduled_messages 
-            (step_order, message_type, content, media_url, delay_minutes)
-            VALUES (:step_order, :message_type, :content, :media_url, :delay_minutes)
-            RETURNING id
-        """)
-
-        result = db.session.execute(query, {
-            'step_order': step_order,
-            'message_type': message_type,
-            'content': content,
-            'media_url': media_url,
-            'delay_minutes': delay_minutes
-        })
-        db.session.commit()
-        message_id = result.fetchone()[0]
-        logger.info(f"Saved scheduled message with ID {message_id}")
-        return message_id
-    except Exception as e:
-        logger.error(f"Error saving scheduled message: {e}")
-        db.session.rollback()
-        raise
-
-def get_scheduled_messages() -> list:
-    """Retrieve all scheduled messages ordered by step_order."""
-    try:
-        query = text("""
-            SELECT id, step_order, message_type, content, media_url, delay_minutes
-            FROM scheduled_messages
-            ORDER BY step_order
-        """)
-        result = db.session.execute(query)
-        messages = []
-        for row in result:
-            messages.append({
-                'id': row[0],
-                'step_order': row[1],
-                'message_type': row[2],
-                'content': row[3],
-                'media_url': row[4],
-                'delay_minutes': row[5]
-            })
-        return messages
-    except Exception as e:
-        logger.error(f"Error retrieving scheduled messages: {e}")
-        return []
-
 def save_user_data(chat_id: int, data: dict) -> None:
     """Save user data to the database."""
     try:
@@ -227,3 +176,54 @@ def get_user_data(chat_id: int) -> dict:
     except Exception as e:
         logger.error(f"Error retrieving user data: {e}")
         return {}
+
+def save_scheduled_message(step_order: int, message_type: str, content: str, 
+                         media_url: str = None, delay_minutes: int = 0) -> int:
+    """Save a scheduled message to the database."""
+    try:
+        query = text("""
+            INSERT INTO scheduled_messages 
+            (step_order, message_type, content, media_url, delay_minutes)
+            VALUES (:step_order, :message_type, :content, :media_url, :delay_minutes)
+            RETURNING id
+        """)
+
+        result = db.session.execute(query, {
+            'step_order': step_order,
+            'message_type': message_type,
+            'content': content,
+            'media_url': media_url,
+            'delay_minutes': delay_minutes
+        })
+        db.session.commit()
+        message_id = result.fetchone()[0]
+        logger.info(f"Saved scheduled message with ID {message_id}")
+        return message_id
+    except Exception as e:
+        logger.error(f"Error saving scheduled message: {e}")
+        db.session.rollback()
+        raise
+
+def get_scheduled_messages() -> list:
+    """Retrieve all scheduled messages ordered by step_order."""
+    try:
+        query = text("""
+            SELECT id, step_order, message_type, content, media_url, delay_minutes
+            FROM scheduled_messages
+            ORDER BY step_order
+        """)
+        result = db.session.execute(query)
+        messages = []
+        for row in result:
+            messages.append({
+                'id': row[0],
+                'step_order': row[1],
+                'message_type': row[2],
+                'content': row[3],
+                'media_url': row[4],
+                'delay_minutes': row[5]
+            })
+        return messages
+    except Exception as e:
+        logger.error(f"Error retrieving scheduled messages: {e}")
+        return []
