@@ -8,10 +8,10 @@ from telegram.ext import (
 )
 from database import init_db
 from handlers import (
-    start, button_handler, text_handler, cancel,
-    SUBSCRIPTION_CHECK, TOPIC, AUDIENCE, MONETIZATION,
+    start, handle_main_menu, handle_repackage, button_handler, text_handler, cancel,
+    SUBSCRIPTION_CHECK, MAIN_MENU, TOPIC, AUDIENCE, MONETIZATION,
     PRODUCT_DETAILS, PREFERENCES, STYLE, EMOTIONS,
-    EXAMPLES, POST_NUMBER
+    EXAMPLES, POST_NUMBER, REPACKAGE_AUDIENCE, REPACKAGE_TOOL, REPACKAGE_RESULT
 )
 
 # Set up logging
@@ -50,12 +50,15 @@ def run_telegram_bot():
         dispatcher.add_error_handler(error_handler)
         logger.info("Error handler added")
 
-        # Create conversation handler
+        # Create conversation handler with the new states
         conv_handler = ConversationHandler(
             entry_points=[CommandHandler('start', start)],
             states={
                 SUBSCRIPTION_CHECK: [
                     CallbackQueryHandler(button_handler, pattern='^check_subscription$')
+                ],
+                MAIN_MENU: [
+                    CallbackQueryHandler(handle_main_menu)
                 ],
                 TOPIC: [
                     CallbackQueryHandler(button_handler, pattern='^start_work$'),
@@ -88,6 +91,16 @@ def run_telegram_bot():
                 POST_NUMBER: [
                     CallbackQueryHandler(button_handler, pattern='^new_plan$'),
                     MessageHandler(Filters.text & ~Filters.command, text_handler)
+                ],
+                # New states for product repackaging
+                REPACKAGE_AUDIENCE: [
+                    MessageHandler(Filters.text & ~Filters.command, handle_repackage)
+                ],
+                REPACKAGE_TOOL: [
+                    MessageHandler(Filters.text & ~Filters.command, handle_repackage)
+                ],
+                REPACKAGE_RESULT: [
+                    MessageHandler(Filters.text & ~Filters.command, handle_repackage)
                 ],
             },
             fallbacks=[CommandHandler('cancel', cancel)],

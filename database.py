@@ -10,6 +10,8 @@ def init_db():
     try:
         conn = sqlite3.connect('bot.db')
         c = conn.cursor()
+
+        # Create users table with extended fields
         c.execute('''
             CREATE TABLE IF NOT EXISTS users (
                 chat_id INTEGER PRIMARY KEY,
@@ -21,13 +23,59 @@ def init_db():
                 style TEXT,
                 emotions TEXT,
                 examples TEXT,
-                content_plan TEXT
+                content_plan TEXT,
+                tone_of_voice TEXT,
+                saved_audience TEXT,
+                content_theme TEXT,
+                last_interaction TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
+
         conn.commit()
         logger.info("Database initialized successfully")
     except Exception as e:
         logger.error(f"Database initialization error: {e}")
+    finally:
+        if conn:
+            conn.close()
+
+def save_user_preferences(chat_id: int, data: dict) -> None:
+    """Save user preferences to the database."""
+    conn = None
+    try:
+        conn = sqlite3.connect('bot.db')
+        c = conn.cursor()
+
+        c.execute('''
+            UPDATE users SET 
+                tone_of_voice = ?,
+                saved_audience = ?,
+                content_theme = ?,
+                last_interaction = CURRENT_TIMESTAMP
+            WHERE chat_id = ?
+        ''', (
+            data.get('tone_of_voice', ''),
+            data.get('saved_audience', ''),
+            data.get('content_theme', ''),
+            chat_id
+        ))
+
+        if c.rowcount == 0:  # No existing record, insert new one
+            c.execute('''
+                INSERT INTO users (
+                    chat_id, tone_of_voice, saved_audience, content_theme
+                ) VALUES (?, ?, ?, ?)
+            ''', (
+                chat_id,
+                data.get('tone_of_voice', ''),
+                data.get('saved_audience', ''),
+                data.get('content_theme', '')
+            ))
+
+        conn.commit()
+        logger.info(f"Saved preferences for user {chat_id}")
+    except Exception as e:
+        logger.error(f"Error saving user preferences: {e}")
     finally:
         if conn:
             conn.close()
@@ -48,8 +96,9 @@ def save_user_data(chat_id: int, data: dict) -> None:
         c.execute('''
             INSERT OR REPLACE INTO users (
                 chat_id, channel_topic, target_audience, monetization,
-                product_details, preferences, style, emotions, examples, content_plan
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                product_details, preferences, style, emotions, examples, content_plan,
+                tone_of_voice, saved_audience, content_theme
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             chat_id,
             data.get('topic', ''),
@@ -60,7 +109,10 @@ def save_user_data(chat_id: int, data: dict) -> None:
             data.get('style', ''),
             data.get('emotions', ''),
             data.get('examples', ''),
-            data.get('content_plan', '')
+            data.get('content_plan', ''),
+            data.get('tone_of_voice', ''),
+            data.get('saved_audience', ''),
+            data.get('content_theme', '')
         ))
         conn.commit()
         logger.info(f"Saved data for user {chat_id}")
@@ -76,13 +128,22 @@ def get_user_data(chat_id: int) -> dict:
     try:
         conn = sqlite3.connect('bot.db')
         c = conn.cursor()
-        c.execute('SELECT * FROM users WHERE chat_id = ?', (chat_id,))
+        c.execute('''
+            SELECT 
+                chat_id, channel_topic, target_audience, monetization,
+                product_details, preferences, style, emotions, examples,
+                content_plan, tone_of_voice, saved_audience, content_theme
+            FROM users 
+            WHERE chat_id = ?
+        ''', (chat_id,))
         row = c.fetchone()
 
         if row:
-            columns = ['chat_id', 'channel_topic', 'target_audience', 'monetization',
-                      'product_details', 'preferences', 'style', 'emotions', 'examples',
-                      'content_plan']
+            columns = [
+                'chat_id', 'channel_topic', 'target_audience', 'monetization',
+                'product_details', 'preferences', 'style', 'emotions', 'examples',
+                'content_plan', 'tone_of_voice', 'saved_audience', 'content_theme'
+            ]
             data = dict(zip(columns, row))
 
             # Parse JSON strings back to Python objects

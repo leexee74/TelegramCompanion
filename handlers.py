@@ -2,18 +2,20 @@ import logging
 from typing import Optional, Dict, Any
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CallbackContext, ConversationHandler
-from database import save_user_data, get_user_data
-from prompts import generate_content_plan, generate_post
+from database import save_user_data, get_user_data, save_user_preferences
+from prompts import generate_content_plan, generate_post, generate_product_repackaging
 from utils import (
     create_monetization_keyboard, create_style_keyboard,
-    create_subscription_keyboard, check_subscription
+    create_subscription_keyboard, check_subscription,
+    create_main_menu_keyboard, create_back_to_menu_keyboard
 )
 
 logger = logging.getLogger(__name__)
 
 # Conversation states
-(SUBSCRIPTION_CHECK, TOPIC, AUDIENCE, MONETIZATION, PRODUCT_DETAILS, 
- PREFERENCES, STYLE, EMOTIONS, EXAMPLES, POST_NUMBER) = range(10)
+(SUBSCRIPTION_CHECK, MAIN_MENU, TOPIC, AUDIENCE, MONETIZATION, PRODUCT_DETAILS, 
+ PREFERENCES, STYLE, EMOTIONS, EXAMPLES, POST_NUMBER,
+ REPACKAGE_AUDIENCE, REPACKAGE_TOOL, REPACKAGE_RESULT) = range(14)
 
 def start(update: Update, context: CallbackContext) -> int:
     """Start the conversation and check subscription."""
@@ -35,18 +37,12 @@ def start(update: Update, context: CallbackContext) -> int:
             )
             return SUBSCRIPTION_CHECK
 
-        # Initialize conversation
-        keyboard = [[InlineKeyboardButton("✨ Начать работу", callback_data='start_work')]]
-        reply_markup = InlineKeyboardMarkup(keyboard)
+        # Show main menu
         update.message.reply_text(
-            "👋 Добро пожаловать! Я помогу вам создать engaging посты для вашего Telegram канала.\n\n"
-            "Нажмите кнопку ниже, чтобы начать:",
-            reply_markup=reply_markup
+            "👋 Выберите действие:",
+            reply_markup=create_main_menu_keyboard()
         )
-        # Clear any existing user data
-        context.user_data.clear()
-        logger.info("User data cleared, waiting for start_work button press")
-        return TOPIC
+        return MAIN_MENU
 
     except Exception as e:
         logger.error(f"Error in start command: {e}", exc_info=True)
@@ -54,6 +50,102 @@ def start(update: Update, context: CallbackContext) -> int:
             "❌ Произошла ошибка при запуске бота. Пожалуйста, попробуйте позже."
         )
         return ConversationHandler.END
+
+def handle_main_menu(update: Update, context: CallbackContext) -> int:
+    """Handle main menu selections."""
+    query = update.callback_query
+    query.answer()
+
+    if query.data == 'content_plan':
+        # Start content plan flow
+        query.message.reply_text(
+            "📝 Какая тема вашего канала?\n\n"
+            "Опишите основную тематику и направленность канала.\n"
+            "Например: бизнес, психология, здоровье, технологии и т.д.\n\n"
+            "Напишите краткое описание темы:"
+        )
+        context.user_data['waiting_for'] = 'topic'
+        return TOPIC
+
+    elif query.data == 'repackage':
+        # Start product repackaging flow
+        query.message.reply_text(
+            "🎯 Кто твоя аудитория?\n\n"
+            "Например: Предприниматели и блоггеры, которые продают товар или услугу"
+        )
+        context.user_data['waiting_for'] = 'repackage_audience'
+        return REPACKAGE_AUDIENCE
+
+    elif query.data == 'start_over':
+        # Clear user data and restart
+        context.user_data.clear()
+        query.message.reply_text(
+            "✨ Данные сброшены. Выберите действие:",
+            reply_markup=create_main_menu_keyboard()
+        )
+        return MAIN_MENU
+
+def handle_repackage(update: Update, context: CallbackContext) -> int:
+    """Handle product repackaging conversation flow."""
+    try:
+        text = update.message.text
+        current_state = context.user_data.get('waiting_for')
+
+        if current_state == 'repackage_audience':
+            context.user_data['audience'] = text
+            update.message.reply_text(
+                "🛠 Какой инструмент ты даешь?\n\n"
+                "Например: Как снять рилс на 1 млн просмотров"
+            )
+            context.user_data['waiting_for'] = 'repackage_tool'
+            return REPACKAGE_TOOL
+
+        elif current_state == 'repackage_tool':
+            context.user_data['tool'] = text
+            update.message.reply_text(
+                "📈 Какой результат они получат?\n\n"
+                "Например: Рилс с 1 млн просмотров принесет продажи"
+            )
+            context.user_data['waiting_for'] = 'repackage_result'
+            return REPACKAGE_RESULT
+
+        elif current_state == 'repackage_result':
+            context.user_data['result'] = text
+            update.message.reply_text("🔄 Генерирую переупаковку продукта...")
+
+            try:
+                repackaged_content = generate_product_repackaging(context.user_data)
+
+                # Save preferences
+                save_user_preferences(update.effective_chat.id, {
+                    'saved_audience': context.user_data.get('audience'),
+                    'content_theme': context.user_data.get('tool')
+                })
+
+                # Send result and return to main menu
+                update.message.reply_text(
+                    f"{repackaged_content}\n\n"
+                    "Выберите следующее действие:",
+                    reply_markup=create_main_menu_keyboard()
+                )
+                return MAIN_MENU
+
+            except Exception as e:
+                logger.error(f"Error generating repackaged content: {e}")
+                update.message.reply_text(
+                    "❌ Произошла ошибка при генерации контента. "
+                    "Пожалуйста, попробуйте еще раз.",
+                    reply_markup=create_main_menu_keyboard()
+                )
+                return MAIN_MENU
+
+    except Exception as e:
+        logger.error(f"Error in repackage handler: {e}")
+        update.message.reply_text(
+            "❌ Произошла ошибка. Пожалуйста, начните заново.",
+            reply_markup=create_main_menu_keyboard()
+        )
+        return MAIN_MENU
 
 def button_handler(update: Update, context: CallbackContext) -> int:
     """Handle button callbacks."""
@@ -462,6 +554,11 @@ def text_handler(update: Update, context: CallbackContext) -> int:
                 )
                 return ConversationHandler.END
 
+        elif context.user_data.get('waiting_for') == 'repackage_audience' or \
+             context.user_data.get('waiting_for') == 'repackage_tool' or \
+             context.user_data.get('waiting_for') == 'repackage_result':
+            return handle_repackage(update, context)
+
         logger.warning(f"Unexpected waiting_for state: {context.user_data.get('waiting_for')}")
         return ConversationHandler.END
 
@@ -480,5 +577,8 @@ def text_handler(update: Update, context: CallbackContext) -> int:
 
 def cancel(update: Update, context: CallbackContext) -> int:
     """Cancel and end the conversation."""
-    update.message.reply_text('Операция отменена. Для начала напишите /start')
+    update.message.reply_text(
+        'Операция отменена. Нажмите /start для возврата в главное меню',
+        reply_markup=create_main_menu_keyboard()
+    )
     return ConversationHandler.END

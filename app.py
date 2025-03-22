@@ -1,8 +1,9 @@
-from flask import Flask, render_template
+from flask import Flask, render_template, request, jsonify
 import os
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
 import logging
+from main import run_telegram_bot
 
 # Initialize logging
 logging.basicConfig(level=logging.DEBUG)
@@ -37,6 +38,17 @@ db.init_app(app)
 @app.route('/')
 def home():
     return render_template('index.html')
+
+#Webhook route (added based on intention)
+@app.route('/webhook', methods=['POST'])
+def webhook():
+    if request.method == 'POST':
+        update = request.get_json()
+        #process update and log it
+        run_telegram_bot(update) #Pass update to bot processing function in main.py.  Assumes this function exists.
+        return jsonify({'status': 'success'})
+    else:
+        return jsonify({'status': 'error'})
 
 # Create database tables
 with app.app_context():
