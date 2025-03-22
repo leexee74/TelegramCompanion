@@ -1,10 +1,8 @@
 from app import app
-from main import run_telegram_bot, stop_telegram_bot
+from main import run_telegram_bot
 import threading
 import logging
 import os
-import atexit
-import signal
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
@@ -34,26 +32,6 @@ def start_bot():
         except Exception as e:
             logger.error(f"Failed to start Telegram bot thread: {e}", exc_info=True)
             raise
-
-def cleanup():
-    """Cleanup function to be called on exit."""
-    try:
-        logger.info("Running cleanup...")
-        stop_telegram_bot()
-        logger.info("Cleanup completed")
-    except Exception as e:
-        logger.error(f"Error during cleanup: {e}")
-
-# Register cleanup function
-atexit.register(cleanup)
-
-# Register signal handlers
-def signal_handler(signum, frame):
-    logger.info(f"Received signal {signum}")
-    cleanup()
-
-signal.signal(signal.SIGTERM, signal_handler)
-signal.signal(signal.SIGINT, signal_handler)
 
 # Handle Flask application
 if __name__ == "__main__":
