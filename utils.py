@@ -18,14 +18,18 @@ def create_main_menu_keyboard() -> InlineKeyboardMarkup:
 
 def create_subscription_keyboard() -> InlineKeyboardMarkup:
     """Create keyboard with subscription button."""
+    logger.info("Creating subscription keyboard...")
     keyboard = [[
         InlineKeyboardButton("📢 Подписаться на канал", url="https://t.me/expert_buyanov"),
         InlineKeyboardButton("✅ Я подписался", callback_data='check_subscription')
     ]]
-    return InlineKeyboardMarkup(keyboard)
+    markup = InlineKeyboardMarkup(keyboard)
+    logger.info("Created subscription keyboard")
+    return markup
 
 def create_back_to_menu_keyboard() -> InlineKeyboardMarkup:
     """Create keyboard with only back to menu button."""
+    logger.info("Creating back to menu keyboard...")
     return InlineKeyboardMarkup([[
         InlineKeyboardButton("🔙 Вернуться в меню", callback_data='back_to_menu')
     ]])

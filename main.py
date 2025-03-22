@@ -6,7 +6,7 @@ from telegram.ext import (
     CallbackQueryHandler, ConversationHandler
 )
 from handlers import (
-    start, button_handler, cancel,
+    start, button_handler, handle_main_menu, cancel,
     SUBSCRIPTION_CHECK, MAIN_MENU
 )
 
@@ -65,7 +65,7 @@ def run_telegram_bot():
                     CallbackQueryHandler(button_handler, pattern='^check_subscription$')
                 ],
                 MAIN_MENU: [
-                    CallbackQueryHandler(button_handler)
+                    CallbackQueryHandler(handle_main_menu)
                 ]
             },
             fallbacks=[CommandHandler('cancel', cancel)],
