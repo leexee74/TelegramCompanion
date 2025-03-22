@@ -13,6 +13,9 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 def generate_product_repackaging(data: Dict[str, str]) -> str:
     """Generate product repackaging content using GPT-4."""
     try:
+        logger.info("Generating product repackaging content...")
+        logger.debug(f"Input data: {data}")
+
         prompt = f"""
         Создай переупаковку продукта на основе следующей информации:
 
@@ -40,11 +43,13 @@ def generate_product_repackaging(data: Dict[str, str]) -> str:
             temperature=0.7
         )
 
-        return response.choices[0].message.content.strip()
+        content = response.choices[0].message.content.strip()
+        logger.info("Successfully generated product repackaging content")
+        return content
 
     except Exception as e:
-        logger.error(f"Error generating product repackaging: {e}")
-        raise
+        logger.error(f"Error generating product repackaging: {e}", exc_info=True)
+        return "❌ Извините, произошла ошибка при генерации контента. Пожалуйста, попробуйте позже или обратитесь в поддержку."
 
 def generate_content_plan(user_data: Dict[str, Any], user_prefs: Dict[str, str] = None) -> str:
     """Generate a 14-day content plan using GPT-4."""

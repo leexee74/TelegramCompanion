@@ -7,7 +7,8 @@ from telegram.ext import (
 )
 from handlers import (
     start, button_handler, handle_main_menu, cancel,
-    SUBSCRIPTION_CHECK, MAIN_MENU
+    handle_repackage_audience, handle_repackage_tool, handle_repackage_result,
+    SUBSCRIPTION_CHECK, MAIN_MENU, REPACKAGE_AUDIENCE, REPACKAGE_TOOL, REPACKAGE_RESULT
 )
 
 # Set up logging
@@ -66,6 +67,18 @@ def run_telegram_bot():
                 ],
                 MAIN_MENU: [
                     CallbackQueryHandler(handle_main_menu)
+                ],
+                REPACKAGE_AUDIENCE: [
+                    MessageHandler(Filters.text & ~Filters.command, handle_repackage_audience),
+                    CallbackQueryHandler(handle_main_menu, pattern='^back_to_menu$')
+                ],
+                REPACKAGE_TOOL: [
+                    MessageHandler(Filters.text & ~Filters.command, handle_repackage_tool),
+                    CallbackQueryHandler(handle_main_menu, pattern='^back_to_menu$')
+                ],
+                REPACKAGE_RESULT: [
+                    MessageHandler(Filters.text & ~Filters.command, handle_repackage_result),
+                    CallbackQueryHandler(handle_main_menu, pattern='^back_to_menu$')
                 ]
             },
             fallbacks=[CommandHandler('cancel', cancel)],
