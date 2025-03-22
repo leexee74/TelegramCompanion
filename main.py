@@ -8,15 +8,22 @@ from telegram.ext import (
 from database import init_db
 from handlers import (
     start, button_handler, text_handler, cancel,
-    SUBSCRIPTION_CHECK, TOPIC, AUDIENCE, MONETIZATION,
-    PRODUCT_DETAILS, PREFERENCES, STYLE, EMOTIONS,
-    EXAMPLES, POST_NUMBER
+    handle_main_menu, handle_repackage_audience,
+    handle_repackage_tool, handle_repackage_result,
+    SUBSCRIPTION_CHECK, MAIN_MENU, TOPIC, AUDIENCE,
+    MONETIZATION, PRODUCT_DETAILS, PREFERENCES, STYLE,
+    EMOTIONS, EXAMPLES, POST_NUMBER,
+    REPACKAGE_AUDIENCE, REPACKAGE_TOOL, REPACKAGE_RESULT
 )
 
-# Set up logging
+# Set up more detailed logging
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.DEBUG
+    level=logging.DEBUG,
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+        logging.FileHandler('telegram_bot.log')
+    ]
 )
 logger = logging.getLogger(__name__)
 
@@ -25,7 +32,7 @@ def error_handler(update, context):
     logger.error(f"============ ERROR OCCURRED ============")
     logger.error(f"Update: {update}")
     logger.error(f"Error: {context.error}")
-    logger.error("========================================")
+    logger.error("========================================", exc_info=True)
 
 _updater = None
 
@@ -59,8 +66,10 @@ def run_telegram_bot():
                 SUBSCRIPTION_CHECK: [
                     CallbackQueryHandler(button_handler, pattern='^check_subscription$')
                 ],
+                MAIN_MENU: [
+                    CallbackQueryHandler(handle_main_menu)
+                ],
                 TOPIC: [
-                    CallbackQueryHandler(button_handler, pattern='^start_work$'),
                     MessageHandler(Filters.text & ~Filters.command, text_handler)
                 ],
                 AUDIENCE: [
@@ -91,6 +100,19 @@ def run_telegram_bot():
                     CallbackQueryHandler(button_handler, pattern='^new_plan$'),
                     MessageHandler(Filters.text & ~Filters.command, text_handler)
                 ],
+                # New states for product repackaging
+                REPACKAGE_AUDIENCE: [
+                    MessageHandler(Filters.text & ~Filters.command, handle_repackage_audience),
+                    CallbackQueryHandler(button_handler, pattern='^back_to_menu$')
+                ],
+                REPACKAGE_TOOL: [
+                    MessageHandler(Filters.text & ~Filters.command, handle_repackage_tool),
+                    CallbackQueryHandler(button_handler, pattern='^back_to_menu$')
+                ],
+                REPACKAGE_RESULT: [
+                    MessageHandler(Filters.text & ~Filters.command, handle_repackage_result),
+                    CallbackQueryHandler(button_handler, pattern='^back_to_menu$')
+                ],
             },
             fallbacks=[CommandHandler('cancel', cancel)],
             allow_reentry=True,
@@ -101,7 +123,7 @@ def run_telegram_bot():
         dispatcher.add_handler(conv_handler)
         logger.info("Conversation handler added")
 
-        # Start the Bot without idle() to avoid signal handling issues
+        # Start the Bot
         logger.info("Bot starting...")
         _updater.start_polling(drop_pending_updates=True)
         logger.info("Bot started successfully!")

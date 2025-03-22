@@ -1,0 +1,157 @@
+
+**TECHNICAL SPECIFICATION FOR UPDATING TELEGRAM BOT ON REPLIT (ENGLISH)**
+
+### **Goal**
+Implement new features for the existing Telegram bot on Replit. The bot should:
+- Always communicate with users **in Russian**.
+- Be **intuitive and user-friendly**.
+- Retain the existing content plan functionality **unchanged**.
+- Be expanded with product repackaging and message chain tools.
+- Optimize usage of ChatGPT.
+
+---
+
+## **1. Optimization of Resource Usage and Data Storage**
+
+### Requirements:
+- Use **GPT-4-Turbo** for content generation.
+- Save the user's tone of voice, audience, and content theme in SQLite on first input.
+- If user data already exists, use the saved data in prompts without re-requesting.
+- Add a main menu button **«🔄 Начать заново»** so users can reset their data and input new preferences.
+
+### Example SQLite table:
+```sql
+CREATE TABLE IF NOT EXISTS user_data (
+  chat_id INTEGER PRIMARY KEY,
+  tone_of_voice TEXT,
+  audience TEXT,
+  content_theme TEXT
+);
+```
+
+---
+
+## **2. Secondary Bot for Message Chains, Broadcasts, and Stats**
+
+### Features:
+- Schedule **a chain of messages** to be sent after a user subscribes to the main bot.
+- Send **a one-time broadcast message** to all users within 1 minute.
+- Provide **statistics** about total subscribers and broadcast delivery results.
+
+### Message Chain Implementation:
+1. Admin opens the second bot.
+2. Clicks **«➕ Добавить сообщение в цепочку»**.
+3. Inputs:
+   - Text of the message
+   - Attaches image/video (optional)
+   - Sets **when** to send it (X minutes/hours/days after subscription)
+4. Clicks **«✅ Сохранить»**
+5. The bot confirms and offers **«➕ Добавить ещё одно сообщение»**
+6. The admin repeats steps 3–5 to build the full chain.
+7. Messages are saved in:
+```sql
+CREATE TABLE IF NOT EXISTS scheduled_messages (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  step_order INTEGER,
+  message_type TEXT,
+  content TEXT,
+  media_url TEXT,
+  delay_minutes INTEGER
+);
+```
+8. The main bot stores `chat_id` and subscription timestamp.
+9. The second bot checks who and when should receive the next message.
+
+### Message Chain Management Enhancements:
+In addition to adding messages to the sequence, the admin bot must support:
+
+- 🔄 **Editing existing messages** in the chain.
+- ❌ **Deleting specific messages** from the chain.
+- 📋 **Listing all scheduled messages** with their order and delay time for easy review and management.
+
+The admin interface should allow the user to:
+1. View the full current sequence with numbered steps.
+2. Select a message to edit (text/media/delay).
+3. Select a message to delete.
+4. Confirm before deletion or saving edits.
+
+These controls should be accessible from the same menu as message creation and clearly labeled for ease of use.
+
+### Broadcast Messaging:
+1. Admin clicks **«📢 Массовая рассылка»**.
+2. Inputs message and attaches media (if needed).
+3. Confirms.
+4. Bot sends message to all users within 1 minute.
+5. Bot replies: **«Сообщение отправлено [N] пользователям»**
+
+### Statistics:
+- Admin menu includes **«👥 Подписчики»** button.
+- Shows:
+  - Total number of subscribers
+  - Last broadcast stats: **«Последняя рассылка отправлена X пользователям»**
+
+### Subscriber table:
+```sql
+CREATE TABLE IF NOT EXISTS subscribers (
+  chat_id INTEGER PRIMARY KEY,
+  joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+---
+
+## **3. Main Bot Menu (in Russian):**
+```
+📋 Контент-план / Посты
+🎯 Переупаковка продукта
+🔄 Начать заново
+```
+
+### When user clicks **📋 Контент-план / Посты**:
+- Launch existing content plan/post generation functionality.
+- **Do not change structure or logic.**
+
+---
+
+## **4. New Feature: 🎯 Переупаковка продукта**
+
+### Input sequence:
+1. **«Кто твоя аудитория?»**
+   Example: «Предприниматели и блоггеры, которые продают товар или услугу»
+2. **«Какой инструмент ты даешь?»**
+   Example: «Как снять рилс на 1 млн просмотров»
+3. **«Какой результат они получат?»**
+   Example: «Рилс с 1 млн просмотров принесет продажи»
+
+### ChatGPT Prompt:
+(текст промпта — как в предыдущем шаге)
+
+---
+
+## **5. User Interface**
+- Every step must have **«🔙 Вернуться в меню»** button.
+- Second bot menu must have buttons for:
+  - Add message to chain
+  - Set message delay
+  - Edit/Delete/View chain messages
+  - Broadcast message
+  - View subscriber stats
+
+---
+
+## **6. Subscription Check (IMPORTANT)**
+The bot must preserve the existing logic that checks whether the user is subscribed to the channel **@expert_buyanov**.
+
+- The bot **must not allow** access to its functions unless the user is subscribed.
+- This check is currently implemented and **must remain active and functional** after updates.
+- It should be triggered at the beginning of any interaction or after clicking any menu option.
+
+---
+
+## **Final Notes**
+- Functional expansion is implemented without changing the core logic.
+- Chain messaging, broadcast and statistics improve automation and user engagement.
+- Product repackaging reflects perceived value using marketing formula.
+- The interface is intuitive and designed for non-technical users.
+
+Ready for integration in Replit.
