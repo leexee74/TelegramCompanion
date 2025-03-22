@@ -1,11 +1,23 @@
-from flask import Flask, render_template
+print("Starting app.py execution...")
+
+import logging
 import os
+import sys
+from flask import Flask, render_template
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
-import logging
+
+print("Imports successful")
 
 # Initialize logging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.DEBUG,
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+        logging.FileHandler('app.log')
+    ]
+)
 logger = logging.getLogger(__name__)
 
 logger.info("Starting Flask application initialization...")
@@ -61,6 +73,9 @@ def home():
 # Create database tables
 with app.app_context():
     try:
+        # Make sure to import the models here or their tables won't be created
+        import models  # noqa: F401
+
         db.create_all()
         logger.info("Database tables created successfully")
     except Exception as e:
@@ -70,5 +85,9 @@ with app.app_context():
 logger.info("Flask application initialization completed successfully")
 
 if __name__ == "__main__":
-    # Running directly
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    try:
+        logger.info("Starting Flask development server...")
+        app.run(host='0.0.0.0', port=5000, debug=True)
+    except Exception as e:
+        logger.error(f"Failed to start Flask server: {e}", exc_info=True)
+        sys.exit(1)
