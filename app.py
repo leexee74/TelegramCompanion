@@ -12,10 +12,17 @@ logger.info("Starting Flask application initialization...")
 
 # Initialize Flask app
 app = Flask(__name__)
-app.secret_key = os.environ.get("SESSION_SECRET")
-if not app.secret_key:
-    logger.error("SESSION_SECRET environment variable not set!")
-    raise RuntimeError("SESSION_SECRET environment variable must be set")
+
+# Set up secret key with proper error handling
+try:
+    app.secret_key = os.environ.get("SESSION_SECRET")
+    if not app.secret_key:
+        logger.error("SESSION_SECRET environment variable not set!")
+        raise RuntimeError("SESSION_SECRET environment variable must be set")
+    logger.info("Secret key configured successfully")
+except Exception as e:
+    logger.error(f"Failed to configure secret key: {e}", exc_info=True)
+    raise
 
 # Configure database
 class Base(DeclarativeBase):
@@ -23,23 +30,27 @@ class Base(DeclarativeBase):
 
 db = SQLAlchemy(model_class=Base)
 
-# Configure database
-database_url = os.environ.get("DATABASE_URL")
-if not database_url:
-    logger.warning("DATABASE_URL not set; falling back to sqlite:///bot.db")
-    database_url = "sqlite:///bot.db"
+# Configure database with proper error handling
+try:
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        logger.warning("DATABASE_URL not set; falling back to sqlite:///bot.db")
+        database_url = "sqlite:///bot.db"
 
-logger.info(f"Using database: {database_url.split('@')[0].split(':')[0]}://***:***@***")
+    logger.info(f"Using database: {database_url.split('@')[0].split(':')[0]}://***:***@***")
 
-app.config["SQLALCHEMY_DATABASE_URI"] = database_url
-app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-    "pool_recycle": 300,
-    "pool_pre_ping": True,
-}
+    app.config["SQLALCHEMY_DATABASE_URI"] = database_url
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+        "pool_recycle": 300,
+        "pool_pre_ping": True,
+    }
 
-# Initialize SQLAlchemy with app
-db.init_app(app)
-logger.info("SQLAlchemy initialized successfully")
+    # Initialize SQLAlchemy with app
+    db.init_app(app)
+    logger.info("SQLAlchemy initialized successfully")
+except Exception as e:
+    logger.error(f"Failed to configure database: {e}", exc_info=True)
+    raise
 
 # Basic route for health check
 @app.route('/')

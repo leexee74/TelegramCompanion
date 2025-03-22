@@ -8,7 +8,10 @@ from telegram.ext import (
 from handlers import (
     start, button_handler, handle_main_menu, cancel,
     handle_repackage_audience, handle_repackage_tool, handle_repackage_result,
-    SUBSCRIPTION_CHECK, MAIN_MENU, REPACKAGE_AUDIENCE, REPACKAGE_TOOL, REPACKAGE_RESULT
+    handle_content_topic, handle_content_audience, handle_content_monetization,
+    handle_content_product,
+    SUBSCRIPTION_CHECK, MAIN_MENU, REPACKAGE_AUDIENCE, REPACKAGE_TOOL, REPACKAGE_RESULT,
+    CONTENT_TOPIC, CONTENT_AUDIENCE, CONTENT_MONETIZATION, CONTENT_PRODUCT
 )
 
 # Set up logging
@@ -78,6 +81,22 @@ def run_telegram_bot():
                 ],
                 REPACKAGE_RESULT: [
                     MessageHandler(Filters.text & ~Filters.command, handle_repackage_result),
+                    CallbackQueryHandler(handle_main_menu, pattern='^back_to_menu$')
+                ],
+                CONTENT_TOPIC: [
+                    MessageHandler(Filters.text & ~Filters.command, handle_content_topic),
+                    CallbackQueryHandler(handle_main_menu, pattern='^back_to_menu$')
+                ],
+                CONTENT_AUDIENCE: [
+                    MessageHandler(Filters.text & ~Filters.command, handle_content_audience),
+                    CallbackQueryHandler(handle_main_menu, pattern='^back_to_menu$')
+                ],
+                CONTENT_MONETIZATION: [
+                    MessageHandler(Filters.text & ~Filters.command, handle_content_monetization),
+                    CallbackQueryHandler(handle_main_menu, pattern='^back_to_menu$')
+                ],
+                CONTENT_PRODUCT: [
+                    MessageHandler(Filters.text & ~Filters.command, handle_content_product),
                     CallbackQueryHandler(handle_main_menu, pattern='^back_to_menu$')
                 ]
             },

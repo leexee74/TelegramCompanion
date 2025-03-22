@@ -1,7 +1,12 @@
 from app import app
 import logging
 import os
+import sys
+import threading
+from main import run_telegram_bot
 
+# Set up logging
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 def check_required_vars():
@@ -14,5 +19,20 @@ def check_required_vars():
     return True
 
 if __name__ == "__main__":
-    # Start Flask app in development mode
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    # Check environment variables
+    if not check_required_vars():
+        logger.error("Required environment variables missing. Cannot start application.")
+        sys.exit(1)
+
+    try:
+        # Start Telegram bot in a separate thread
+        bot_thread = threading.Thread(target=run_telegram_bot)
+        bot_thread.daemon = True
+        bot_thread.start()
+        logger.info("Telegram bot thread started successfully")
+
+        # Start Flask app
+        app.run(host='0.0.0.0', port=5000, debug=True)
+    except Exception as e:
+        logger.error(f"Error starting application: {e}", exc_info=True)
+        raise

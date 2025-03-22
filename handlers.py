@@ -2,14 +2,17 @@ import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CallbackContext, ConversationHandler
 from utils import create_main_menu_keyboard, create_subscription_keyboard, check_subscription, create_back_to_menu_keyboard
-from prompts import generate_product_repackaging
+from prompts import generate_product_repackaging, generate_content_plan
 from database import save_user_data, get_user_data
 
 logger = logging.getLogger(__name__)
 
 # Conversation states
 (SUBSCRIPTION_CHECK, MAIN_MENU, 
- REPACKAGE_AUDIENCE, REPACKAGE_TOOL, REPACKAGE_RESULT) = range(5)
+ REPACKAGE_AUDIENCE, REPACKAGE_TOOL, REPACKAGE_RESULT,
+ CONTENT_TOPIC, CONTENT_AUDIENCE, CONTENT_MONETIZATION,
+ CONTENT_PRODUCT, CONTENT_PREFERENCES, CONTENT_STYLE,
+ CONTENT_EMOTIONS, CONTENT_EXAMPLES) = range(13)
 
 def start(update: Update, context: CallbackContext) -> int:
     """Start the conversation and check subscription."""
@@ -73,14 +76,14 @@ def handle_main_menu(update: Update, context: CallbackContext) -> int:
         logger.info("==========================================")
 
         if query.data == 'content_plan':
-            # Reset conversation for content plan
+            # Start content plan flow
             context.user_data.clear()
             query.message.edit_text(
-                "⚡ Скоро будет добавлено!\n\n"
-                "Возвращайтесь в главное меню:",
-                reply_markup=create_main_menu_keyboard()
+                "📋 Давайте создадим контент-план!\n\n"
+                "Для начала, укажите тематику вашего канала:",
+                reply_markup=create_back_to_menu_keyboard()
             )
-            return MAIN_MENU
+            return CONTENT_TOPIC
 
         elif query.data == 'repackage':
             # Start repackaging flow
@@ -125,6 +128,104 @@ def handle_main_menu(update: Update, context: CallbackContext) -> int:
             "❌ Произошла ошибка. Пожалуйста, начните заново с команды /start"
         )
         return ConversationHandler.END
+
+def handle_content_topic(update: Update, context: CallbackContext) -> int:
+    """Handle topic input for content plan."""
+    try:
+        # Save topic info
+        context.user_data['topic'] = update.message.text
+        logger.info(f"Saved topic info: {update.message.text}")
+
+        # Ask for audience info
+        update.message.reply_text(
+            "👥 Отлично! Теперь опишите вашу целевую аудиторию:",
+            reply_markup=create_back_to_menu_keyboard()
+        )
+        return CONTENT_AUDIENCE
+
+    except Exception as e:
+        logger.error(f"Error in content topic handler: {e}", exc_info=True)
+        update.message.reply_text(
+            "❌ Произошла ошибка. Пожалуйста, вернитесь в главное меню.",
+            reply_markup=create_main_menu_keyboard()
+        )
+        return MAIN_MENU
+
+def handle_content_audience(update: Update, context: CallbackContext) -> int:
+    """Handle audience input for content plan."""
+    try:
+        # Save audience info
+        context.user_data['audience'] = update.message.text
+        logger.info(f"Saved audience info: {update.message.text}")
+
+        # Ask for monetization info
+        update.message.reply_text(
+            "💰 Как планируете монетизировать канал?",
+            reply_markup=create_back_to_menu_keyboard()
+        )
+        return CONTENT_MONETIZATION
+
+    except Exception as e:
+        logger.error(f"Error in content audience handler: {e}", exc_info=True)
+        update.message.reply_text(
+            "❌ Произошла ошибка. Пожалуйста, вернитесь в главное меню.",
+            reply_markup=create_main_menu_keyboard()
+        )
+        return MAIN_MENU
+
+def handle_content_monetization(update: Update, context: CallbackContext) -> int:
+    """Handle monetization input for content plan."""
+    try:
+        # Save monetization info
+        context.user_data['monetization'] = update.message.text
+        logger.info(f"Saved monetization info: {update.message.text}")
+
+        # Ask for product details
+        update.message.reply_text(
+            "📦 Опишите ваш продукт/услугу/курс:",
+            reply_markup=create_back_to_menu_keyboard()
+        )
+        return CONTENT_PRODUCT
+
+    except Exception as e:
+        logger.error(f"Error in content monetization handler: {e}", exc_info=True)
+        update.message.reply_text(
+            "❌ Произошла ошибка. Пожалуйста, вернитесь в главное меню.",
+            reply_markup=create_main_menu_keyboard()
+        )
+        return MAIN_MENU
+
+def handle_content_product(update: Update, context: CallbackContext) -> int:
+    """Handle product details input for content plan."""
+    try:
+        # Save product details
+        context.user_data['product_details'] = update.message.text
+        logger.info(f"Saved product details: {update.message.text}")
+
+        # Generate content plan
+        update.message.reply_text("🔄 Генерирую контент-план...")
+        content_plan = generate_content_plan(context.user_data)
+
+        # Save content plan to database
+        user_id = update.effective_user.id
+        save_user_data(user_id, context.user_data)
+
+        # Send the result and return to main menu
+        update.message.reply_text(
+            f"{content_plan}\n\n"
+            "Выберите следующее действие:",
+            reply_markup=create_main_menu_keyboard()
+        )
+        return MAIN_MENU
+
+    except Exception as e:
+        logger.error(f"Error in content product handler: {e}", exc_info=True)
+        update.message.reply_text(
+            "❌ Произошла ошибка при генерации контент-плана.\n"
+            "Пожалуйста, вернитесь в главное меню и попробуйте снова.",
+            reply_markup=create_main_menu_keyboard()
+        )
+        return MAIN_MENU
 
 def handle_repackage_audience(update: Update, context: CallbackContext) -> int:
     """Handle audience input for product repackaging."""
