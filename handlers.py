@@ -1,7 +1,7 @@
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CallbackContext, ConversationHandler
-from utils import create_main_menu_keyboard, create_subscription_keyboard, check_subscription, create_back_to_menu_keyboard, create_audience_examples_keyboard, create_monetization_examples_keyboard, create_topic_examples_keyboard
+from utils import create_main_menu_keyboard, create_subscription_keyboard, check_subscription, create_back_to_menu_keyboard
 from prompts import generate_product_repackaging, generate_content_plan
 from database import save_user_data, get_user_data
 
@@ -11,8 +11,7 @@ logger = logging.getLogger(__name__)
 (SUBSCRIPTION_CHECK, MAIN_MENU, 
  REPACKAGE_AUDIENCE, REPACKAGE_TOOL, REPACKAGE_RESULT,
  CONTENT_TOPIC, CONTENT_AUDIENCE, CONTENT_MONETIZATION,
- CONTENT_PRODUCT, CONTENT_PREFERENCES, CONTENT_STYLE,
- CONTENT_EMOTIONS, CONTENT_EXAMPLES) = range(13)
+ CONTENT_PRODUCT) = range(9)
 
 def start(update: Update, context: CallbackContext) -> int:
     """Start the conversation and check subscription."""
