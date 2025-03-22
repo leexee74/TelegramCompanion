@@ -9,8 +9,6 @@ import sys
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-_bot_thread = None
-
 def check_required_vars():
     """Check if all required environment variables are set."""
     required_vars = ["TELEGRAM_BOT_TOKEN", "OPENAI_API_KEY", "SESSION_SECRET"]
@@ -19,27 +17,6 @@ def check_required_vars():
         logger.error(f"Missing required environment variables: {', '.join(missing_vars)}")
         return False
     return True
-
-def start_bot():
-    """Start the Telegram bot in a daemon thread."""
-    global _bot_thread
-    try:
-        _bot_thread = threading.Thread(target=run_telegram_bot, daemon=True)
-        _bot_thread.start()
-        logger.info("Bot started successfully")
-    except Exception as e:
-        logger.error(f"Failed to start bot: {e}")
-        raise
-
-# Only initialize bot when running under Gunicorn
-if os.environ.get('GUNICORN_CMD_ARGS'):
-    if check_required_vars():
-        try:
-            start_bot()
-            logger.info("Bot initialization completed")
-        except Exception as e:
-            logger.error(f"Failed to initialize bot: {e}")
-            sys.exit(1)
 
 # This is required for Gunicorn to find the app
 application = app
