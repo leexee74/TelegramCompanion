@@ -67,38 +67,48 @@ def run_telegram_bot():
                     CallbackQueryHandler(button_handler, pattern='^check_subscription$')
                 ],
                 MAIN_MENU: [
-                    CallbackQueryHandler(handle_main_menu)
+                    CallbackQueryHandler(handle_main_menu),
+                    CallbackQueryHandler(button_handler, pattern='^back_to_menu$')
                 ],
                 TOPIC: [
-                    MessageHandler(Filters.text & ~Filters.command, text_handler)
+                    MessageHandler(Filters.text & ~Filters.command, text_handler),
+                    CallbackQueryHandler(button_handler, pattern='^back_to_menu$')
                 ],
                 AUDIENCE: [
-                    MessageHandler(Filters.text & ~Filters.command, text_handler)
+                    MessageHandler(Filters.text & ~Filters.command, text_handler),
+                    CallbackQueryHandler(button_handler, pattern='^back_to_menu$')
                 ],
                 MONETIZATION: [
-                    CallbackQueryHandler(button_handler, pattern='^(advertising|products|services|consulting)$')
+                    CallbackQueryHandler(button_handler, pattern='^(advertising|products|services|consulting)$'),
+                    CallbackQueryHandler(button_handler, pattern='^back_to_menu$')
                 ],
                 PRODUCT_DETAILS: [
-                    MessageHandler(Filters.text & ~Filters.command, text_handler)
+                    MessageHandler(Filters.text & ~Filters.command, text_handler),
+                    CallbackQueryHandler(button_handler, pattern='^back_to_menu$')
                 ],
                 PREFERENCES: [
-                    MessageHandler(Filters.text & ~Filters.command, text_handler)
+                    MessageHandler(Filters.text & ~Filters.command, text_handler),
+                    CallbackQueryHandler(button_handler, pattern='^back_to_menu$')
                 ],
                 STYLE: [
                     CallbackQueryHandler(button_handler, pattern='^(aggressive|business|humorous|custom)$'),
-                    MessageHandler(Filters.text & ~Filters.command, text_handler)
+                    MessageHandler(Filters.text & ~Filters.command, text_handler),
+                    CallbackQueryHandler(button_handler, pattern='^back_to_menu$')
                 ],
                 EMOTIONS: [
-                    MessageHandler(Filters.text & ~Filters.command, text_handler)
+                    MessageHandler(Filters.text & ~Filters.command, text_handler),
+                    CallbackQueryHandler(button_handler, pattern='^back_to_menu$')
                 ],
                 EXAMPLES: [
                     MessageHandler((Filters.text | Filters.forwarded) & ~Filters.command, text_handler),
                     CallbackQueryHandler(button_handler, pattern='^add_example$'),
-                    CallbackQueryHandler(button_handler, pattern='^finish_examples$')
+                    CallbackQueryHandler(button_handler, pattern='^finish_examples$'),
+                    CallbackQueryHandler(button_handler, pattern='^back_to_menu$')
                 ],
                 POST_NUMBER: [
                     CallbackQueryHandler(button_handler, pattern='^new_plan$'),
-                    MessageHandler(Filters.text & ~Filters.command, text_handler)
+                    MessageHandler(Filters.text & ~Filters.command, text_handler),
+                    CallbackQueryHandler(button_handler, pattern='^back_to_menu$')
                 ],
                 # New states for product repackaging
                 REPACKAGE_AUDIENCE: [

@@ -29,6 +29,10 @@ def start(update: Update, context: CallbackContext) -> int:
         logger.info(f"Chat ID: {update.effective_chat.id}")
         logger.info("=======================================")
 
+        # Clear any existing user data
+        context.user_data.clear()
+        logger.info("Cleared existing user data")
+
         # Check subscription status
         is_subscribed = check_subscription(context, user_id)
         logger.info(f"Subscription check result for user {user_id}: {is_subscribed}")
@@ -46,11 +50,10 @@ def start(update: Update, context: CallbackContext) -> int:
         main_menu_keyboard = create_main_menu_keyboard()
         logger.info(f"Created main menu keyboard: {main_menu_keyboard.to_dict()}")
         update.message.reply_text(
-            "👋 Добро пожаловать! Выберите действие:",
+            "👋 Выберите действие:",
             reply_markup=main_menu_keyboard
         )
-        context.user_data.clear()
-        logger.info("Cleared user data and sent main menu")
+        logger.info("Sent main menu message")
         return MAIN_MENU
 
     except Exception as e:
