@@ -110,18 +110,6 @@ def run_telegram_bot():
         logger.error(f"Fatal error: {e}", exc_info=True)
         raise
 
-def stop_telegram_bot():
-    """Stop the bot if it's running."""
-    global _updater
-    if _updater is not None:
-        try:
-            logger.info("Stopping bot...")
-            _updater.stop()
-            _updater = None
-            logger.info("Bot stopped successfully")
-        except Exception as e:
-            logger.error(f"Error stopping bot: {e}")
-
 if __name__ == '__main__':
     try:
         logger.info("Starting bot application...")

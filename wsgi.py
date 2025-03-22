@@ -21,39 +21,22 @@ def check_required_vars():
     return True
 
 def start_bot():
-    """Start the Telegram bot in a separate thread if not already running."""
+    """Start the Telegram bot in a daemon thread."""
     global _bot_thread
-    if _bot_thread is None or not _bot_thread.is_alive():
-        try:
-            logger.info("Starting Telegram bot thread")
-            _bot_thread = threading.Thread(target=run_telegram_bot)
-            _bot_thread.daemon = True  # Make thread daemon so it exits when main thread exits
-            _bot_thread.start()
-            logger.info("Telegram bot thread started successfully")
-        except Exception as e:
-            logger.error(f"Failed to start Telegram bot thread: {e}", exc_info=True)
-            raise
-
-def cleanup():
-    """Cleanup function to be called on exit."""
     try:
-        logger.info("Running cleanup...")
-        if _bot_thread and _bot_thread.is_alive():
-            logger.info("Stopping bot thread...")
-            # Let the bot thread exit naturally as it's a daemon thread
-        logger.info("Cleanup completed")
+        _bot_thread = threading.Thread(target=run_telegram_bot, daemon=True)
+        _bot_thread.start()
+        logger.info("Telegram bot thread started successfully")
     except Exception as e:
-        logger.error(f"Error during cleanup: {e}")
+        logger.error(f"Failed to start bot thread: {e}")
+        raise
 
-# Only start the bot if running under Gunicorn
+# Initialize bot when running under Gunicorn
 if os.environ.get('GUNICORN_CMD_ARGS'):
     if check_required_vars():
         try:
             start_bot()
-            logger.info("Bot started successfully under Gunicorn")
+            logger.info("Bot initialization completed")
         except Exception as e:
-            logger.error(f"Failed to start bot under Gunicorn: {e}")
+            logger.error(f"Failed to initialize bot: {e}")
             sys.exit(1)
-    else:
-        logger.error("Cannot start server: missing required environment variables")
-        sys.exit(1)
