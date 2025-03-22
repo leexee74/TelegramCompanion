@@ -1,4 +1,3 @@
-from app import app
 import logging
 import os
 import sys
@@ -7,6 +6,7 @@ import time
 import signal
 from functools import partial
 from main import run_telegram_bot
+from app import app
 
 # Set up logging
 logging.basicConfig(
@@ -81,6 +81,16 @@ def start_bot_with_retry(max_retries=3, retry_delay=5):
 
     return True
 
+def run_flask_app():
+    """Run Flask application with proper error handling."""
+    try:
+        logger.info("Starting Flask application...")
+        app.run(host='0.0.0.0', port=5000, debug=True)
+    except Exception as e:
+        logger.error(f"Error running Flask app: {e}", exc_info=True)
+        cleanup()
+        sys.exit(1)
+
 if __name__ == "__main__":
     try:
         # Set up signal handlers
@@ -100,9 +110,8 @@ if __name__ == "__main__":
         bot_thread.start()
         logger.info("Telegram bot thread started")
 
-        # Start Flask app
-        logger.info("Starting Flask application...")
-        app.run(host='0.0.0.0', port=5000, debug=True)
+        # Start Flask app in the main thread
+        run_flask_app()
 
     except Exception as e:
         logger.error(f"Error starting application: {e}", exc_info=True)

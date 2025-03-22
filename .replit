@@ -9,7 +9,7 @@ run = ["sh", "-c", "gunicorn --bind 0.0.0.0:5000 wsgi:app --timeout 120"]
 ignorePorts = true
 
 [workflows]
-runButton = "Development"
+runButton = "Project"
 
 [[workflows.workflow]]
 name = "Project"
@@ -23,6 +23,10 @@ args = "Start application"
 [[workflows.workflow.tasks]]
 task = "workflow.run"
 args = "telegram_bot"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Flask Server"
 
 [[workflows.workflow]]
 name = "Start application"
@@ -79,6 +83,20 @@ mode = "sequential"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "gunicorn --bind 0.0.0.0:5000 --reload wsgi:app"
+
+[[workflows.workflow]]
+name = "Flask Server"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+
+[[workflows.workflow.tasks]]
+task = "packager.installForAll"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python server.py"
 
 [[ports]]
 localPort = 5000
