@@ -32,7 +32,6 @@ _updater = None
 def run_telegram_bot():
     """Start the bot."""
     global _updater
-
     try:
         # Check if bot is already running
         if _updater is not None:
