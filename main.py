@@ -1,4 +1,3 @@
-from app import app
 import logging
 import os
 import sys
@@ -28,9 +27,18 @@ def error_handler(update, context):
     logger.error(f"Error: {context.error}")
     logger.error("========================================")
 
+_updater = None
+
 def run_telegram_bot():
     """Start the bot."""
+    global _updater
+
     try:
+        # Check if bot is already running
+        if _updater is not None:
+            logger.warning("Bot already running, skipping initialization")
+            return
+
         # Initialize database
         init_db()
         logger.info("Database initialized")
@@ -42,8 +50,8 @@ def run_telegram_bot():
             return
 
         # Create the Updater and pass it your bot's token
-        updater = Updater(token=TOKEN, use_context=True)
-        dispatcher = updater.dispatcher
+        _updater = Updater(token=TOKEN, use_context=True)
+        dispatcher = _updater.dispatcher
         logger.info("Bot dispatcher initialized")
 
         # Add error handler
@@ -101,15 +109,24 @@ def run_telegram_bot():
 
         # Start the Bot
         logger.info("Bot starting...")
-        updater.start_polling(drop_pending_updates=True)
+        _updater.start_polling(drop_pending_updates=True)
         logger.info("Bot started successfully!")
-
-        # Keep the bot running
-        updater.idle()
 
     except Exception as e:
         logger.error(f"Fatal error: {e}", exc_info=True)
         raise
+
+def stop_telegram_bot():
+    """Stop the bot if it's running."""
+    global _updater
+    if _updater is not None:
+        try:
+            logger.info("Stopping bot...")
+            _updater.stop()
+            _updater = None
+            logger.info("Bot stopped successfully")
+        except Exception as e:
+            logger.error(f"Error stopping bot: {e}")
 
 if __name__ == '__main__':
     try:

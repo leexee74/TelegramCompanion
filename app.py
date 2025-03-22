@@ -41,3 +41,4 @@ def home():
 # Create database tables
 with app.app_context():
     db.create_all()
+    logger.info("Database tables created successfully")
