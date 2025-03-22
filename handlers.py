@@ -1,7 +1,7 @@
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CallbackContext, ConversationHandler
-from utils import create_main_menu_keyboard, create_subscription_keyboard, check_subscription, create_back_to_menu_keyboard
+from utils import create_main_menu_keyboard, create_subscription_keyboard, check_subscription, create_back_to_menu_keyboard, create_audience_examples_keyboard, create_monetization_examples_keyboard, create_topic_examples_keyboard
 from prompts import generate_product_repackaging, generate_content_plan
 from database import save_user_data, get_user_data
 
@@ -82,8 +82,8 @@ def handle_main_menu(update: Update, context: CallbackContext) -> int:
             logger.info("Starting content plan flow")
             query.message.edit_text(
                 "📋 Давайте создадим контент-план!\n\n"
-                "Для начала, укажите тематику вашего канала:",
-                reply_markup=create_back_to_menu_keyboard()
+                "Выберите тему канала или напишите свою:",
+                reply_markup=create_topic_examples_keyboard()
             )
             return CONTENT_TOPIC
 
@@ -134,85 +134,184 @@ def handle_main_menu(update: Update, context: CallbackContext) -> int:
 def handle_content_topic(update: Update, context: CallbackContext) -> int:
     """Handle topic input for content plan."""
     try:
-        # Log incoming message
-        logger.info(f"============ CONTENT TOPIC HANDLER ============")
-        logger.info(f"User ID: {update.effective_user.id}")
-        logger.info(f"Message text: {update.message.text}")
-        logger.info("=============================================")
+        # If it's a callback query, handle example selection
+        if update.callback_query:
+            query = update.callback_query
+            query.answer()
 
-        # Save topic info
-        context.user_data['topic'] = update.message.text
-        logger.info(f"Saved topic info: {update.message.text}")
+            if query.data.startswith('topic_'):
+                example_topics = {
+                    'topic_business': 'Развитие бизнеса и предпринимательство',
+                    'topic_marketing': 'Маркетинг и продажи в социальных сетях',
+                    'topic_growth': 'Личностный рост и саморазвитие',
+                    'topic_art': 'Творчество и креативные проекты'
+                }
+                selected_topic = example_topics.get(query.data)
+                context.user_data['topic'] = selected_topic
+                query.message.edit_text(
+                    f"✅ Выбрана тема: {selected_topic}\n\n"
+                    "👥 Теперь опишите вашу целевую аудиторию:",
+                    reply_markup=create_audience_examples_keyboard()
+                )
+                return CONTENT_AUDIENCE
 
-        # Ask for audience info
-        update.message.reply_text(
-            "👥 Отлично! Теперь опишите вашу целевую аудиторию:",
-            reply_markup=create_back_to_menu_keyboard()
-        )
-        return CONTENT_AUDIENCE
+            elif query.data == 'back_to_menu':
+                return handle_main_menu(update, context)
+
+        # If it's a text message, save the topic
+        else:
+            # Log incoming message
+            logger.info(f"============ CONTENT TOPIC HANDLER ============")
+            logger.info(f"User ID: {update.effective_user.id}")
+            logger.info(f"Message text: {update.message.text}")
+            logger.info("=============================================")
+
+            # Save topic info
+            context.user_data['topic'] = update.message.text
+            logger.info(f"Saved topic info: {update.message.text}")
+
+            # Show audience examples
+            update.message.reply_text(
+                "👥 Отлично! Теперь опишите вашу целевую аудиторию.\n\n"
+                "Выберите пример или напишите свой вариант:",
+                reply_markup=create_audience_examples_keyboard()
+            )
+            return CONTENT_AUDIENCE
 
     except Exception as e:
         logger.error(f"Error in content topic handler: {e}", exc_info=True)
-        update.message.reply_text(
-            "❌ Произошла ошибка. Пожалуйста, вернитесь в главное меню.",
-            reply_markup=create_main_menu_keyboard()
-        )
+        if update.callback_query:
+            update.callback_query.message.edit_text(
+                "❌ Произошла ошибка. Пожалуйста, вернитесь в главное меню.",
+                reply_markup=create_main_menu_keyboard()
+            )
+        else:
+            update.message.reply_text(
+                "❌ Произошла ошибка. Пожалуйста, вернитесь в главное меню.",
+                reply_markup=create_main_menu_keyboard()
+            )
         return MAIN_MENU
 
 def handle_content_audience(update: Update, context: CallbackContext) -> int:
     """Handle audience input for content plan."""
     try:
-        # Log incoming message
-        logger.info(f"============ CONTENT AUDIENCE HANDLER ============")
-        logger.info(f"User ID: {update.effective_user.id}")
-        logger.info(f"Message text: {update.message.text}")
-        logger.info("===============================================")
+        # Handle example selection via callback
+        if update.callback_query:
+            query = update.callback_query
+            query.answer()
 
-        # Save audience info
-        context.user_data['audience'] = update.message.text
-        logger.info(f"Saved audience info: {update.message.text}")
+            if query.data.startswith('audience_'):
+                example_audiences = {
+                    'audience_entrepreneurs': 'Предприниматели, владельцы малого и среднего бизнеса',
+                    'audience_freelancers': 'Фрилансеры и удаленные специалисты',
+                    'audience_bloggers': 'Блогеры и контент-мейкеры',
+                    'audience_beginners': 'Начинающие специалисты, желающие развиваться'
+                }
+                selected_audience = example_audiences.get(query.data)
+                context.user_data['audience'] = selected_audience
+                query.message.edit_text(
+                    f"✅ Выбрана аудитория: {selected_audience}\n\n"
+                    "💰 Как планируете монетизировать канал?\n"
+                    "Выберите пример или напишите свой вариант:",
+                    reply_markup=create_monetization_examples_keyboard()
+                )
+                return CONTENT_MONETIZATION
 
-        # Ask for monetization info
-        update.message.reply_text(
-            "💰 Как планируете монетизировать канал?",
-            reply_markup=create_back_to_menu_keyboard()
-        )
-        return CONTENT_MONETIZATION
+            elif query.data == 'back_to_menu':
+                return handle_main_menu(update, context)
+
+        # Handle text input
+        else:
+            # Log incoming message
+            logger.info(f"============ CONTENT AUDIENCE HANDLER ============")
+            logger.info(f"User ID: {update.effective_user.id}")
+            logger.info(f"Message text: {update.message.text}")
+            logger.info("===============================================")
+
+            # Save audience info
+            context.user_data['audience'] = update.message.text
+            logger.info(f"Saved audience info: {update.message.text}")
+
+            # Show monetization examples
+            update.message.reply_text(
+                "💰 Как планируете монетизировать канал?\n\n"
+                "Выберите пример или напишите свой вариант:",
+                reply_markup=create_monetization_examples_keyboard()
+            )
+            return CONTENT_MONETIZATION
 
     except Exception as e:
         logger.error(f"Error in content audience handler: {e}", exc_info=True)
-        update.message.reply_text(
-            "❌ Произошла ошибка. Пожалуйста, вернитесь в главное меню.",
-            reply_markup=create_main_menu_keyboard()
-        )
+        if update.callback_query:
+            update.callback_query.message.edit_text(
+                "❌ Произошла ошибка. Пожалуйста, вернитесь в главное меню.",
+                reply_markup=create_main_menu_keyboard()
+            )
+        else:
+            update.message.reply_text(
+                "❌ Произошла ошибка. Пожалуйста, вернитесь в главное меню.",
+                reply_markup=create_main_menu_keyboard()
+            )
         return MAIN_MENU
 
 def handle_content_monetization(update: Update, context: CallbackContext) -> int:
     """Handle monetization input for content plan."""
     try:
-        # Log incoming message
-        logger.info(f"============ CONTENT MONETIZATION HANDLER ============")
-        logger.info(f"User ID: {update.effective_user.id}")
-        logger.info(f"Message text: {update.message.text}")
-        logger.info("=================================================")
+        # Handle example selection via callback
+        if update.callback_query:
+            query = update.callback_query
+            query.answer()
 
-        # Save monetization info
-        context.user_data['monetization'] = update.message.text
-        logger.info(f"Saved monetization info: {update.message.text}")
+            if query.data.startswith('monetization_'):
+                example_monetization = {
+                    'monetization_info': 'Продажа онлайн-курсов и инфопродуктов',
+                    'monetization_consult': 'Индивидуальные консультации и коучинг',
+                    'monetization_ads': 'Реклама и спонсорские интеграции',
+                    'monetization_partner': 'Партнерские программы и комиссионные'
+                }
+                selected_monetization = example_monetization.get(query.data)
+                context.user_data['monetization'] = selected_monetization
+                query.message.edit_text(
+                    f"✅ Выбран способ монетизации: {selected_monetization}\n\n"
+                    "📦 Опишите ваш продукт/услугу/курс:",
+                    reply_markup=create_back_to_menu_keyboard()
+                )
+                return CONTENT_PRODUCT
 
-        # Ask for product details
-        update.message.reply_text(
-            "📦 Опишите ваш продукт/услугу/курс:",
-            reply_markup=create_back_to_menu_keyboard()
-        )
-        return CONTENT_PRODUCT
+            elif query.data == 'back_to_menu':
+                return handle_main_menu(update, context)
+
+        # Handle text input
+        else:
+            # Log incoming message
+            logger.info(f"============ CONTENT MONETIZATION HANDLER ============")
+            logger.info(f"User ID: {update.effective_user.id}")
+            logger.info(f"Message text: {update.message.text}")
+            logger.info("=================================================")
+
+            # Save monetization info
+            context.user_data['monetization'] = update.message.text
+            logger.info(f"Saved monetization info: {update.message.text}")
+
+            # Ask for product details
+            update.message.reply_text(
+                "📦 Опишите ваш продукт/услугу/курс:",
+                reply_markup=create_back_to_menu_keyboard()
+            )
+            return CONTENT_PRODUCT
 
     except Exception as e:
         logger.error(f"Error in content monetization handler: {e}", exc_info=True)
-        update.message.reply_text(
-            "❌ Произошла ошибка. Пожалуйста, вернитесь в главное меню.",
-            reply_markup=create_main_menu_keyboard()
-        )
+        if update.callback_query:
+            update.callback_query.message.edit_text(
+                "❌ Произошла ошибка. Пожалуйста, вернитесь в главное меню.",
+                reply_markup=create_main_menu_keyboard()
+            )
+        else:
+            update.message.reply_text(
+                "❌ Произошла ошибка. Пожалуйста, вернитесь в главное меню.",
+                reply_markup=create_main_menu_keyboard()
+            )
         return MAIN_MENU
 
 def handle_content_product(update: Update, context: CallbackContext) -> int:

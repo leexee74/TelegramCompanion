@@ -72,6 +72,22 @@ def run_telegram_bot():
                 MAIN_MENU: [
                     CallbackQueryHandler(handle_main_menu)
                 ],
+                CONTENT_TOPIC: [
+                    MessageHandler(Filters.text & ~Filters.command, handle_content_topic),
+                    CallbackQueryHandler(handle_content_topic, pattern='^topic_|back_to_menu$')
+                ],
+                CONTENT_AUDIENCE: [
+                    MessageHandler(Filters.text & ~Filters.command, handle_content_audience),
+                    CallbackQueryHandler(handle_content_audience, pattern='^audience_|back_to_menu$')
+                ],
+                CONTENT_MONETIZATION: [
+                    MessageHandler(Filters.text & ~Filters.command, handle_content_monetization),
+                    CallbackQueryHandler(handle_content_monetization, pattern='^monetization_|back_to_menu$')
+                ],
+                CONTENT_PRODUCT: [
+                    MessageHandler(Filters.text & ~Filters.command, handle_content_product),
+                    CallbackQueryHandler(handle_main_menu, pattern='^back_to_menu$')
+                ],
                 REPACKAGE_AUDIENCE: [
                     MessageHandler(Filters.text & ~Filters.command, handle_repackage_audience),
                     CallbackQueryHandler(handle_main_menu, pattern='^back_to_menu$')
@@ -82,22 +98,6 @@ def run_telegram_bot():
                 ],
                 REPACKAGE_RESULT: [
                     MessageHandler(Filters.text & ~Filters.command, handle_repackage_result),
-                    CallbackQueryHandler(handle_main_menu, pattern='^back_to_menu$')
-                ],
-                CONTENT_TOPIC: [
-                    MessageHandler(Filters.text & ~Filters.command, handle_content_topic),
-                    CallbackQueryHandler(handle_main_menu, pattern='^back_to_menu$')
-                ],
-                CONTENT_AUDIENCE: [
-                    MessageHandler(Filters.text & ~Filters.command, handle_content_audience),
-                    CallbackQueryHandler(handle_main_menu, pattern='^back_to_menu$')
-                ],
-                CONTENT_MONETIZATION: [
-                    MessageHandler(Filters.text & ~Filters.command, handle_content_monetization),
-                    CallbackQueryHandler(handle_main_menu, pattern='^back_to_menu$')
-                ],
-                CONTENT_PRODUCT: [
-                    MessageHandler(Filters.text & ~Filters.command, handle_content_product),
                     CallbackQueryHandler(handle_main_menu, pattern='^back_to_menu$')
                 ]
             },

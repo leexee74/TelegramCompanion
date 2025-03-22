@@ -4,6 +4,17 @@ from telegram.ext import CallbackContext
 
 logger = logging.getLogger(__name__)
 
+def create_topic_examples_keyboard() -> InlineKeyboardMarkup:
+    """Create keyboard with topic examples."""
+    keyboard = [
+        [InlineKeyboardButton("💼 Бизнес и предпринимательство", callback_data='topic_business')],
+        [InlineKeyboardButton("🎯 Маркетинг и продажи", callback_data='topic_marketing')],
+        [InlineKeyboardButton("💪 Личностный рост", callback_data='topic_growth')],
+        [InlineKeyboardButton("🎨 Творчество и искусство", callback_data='topic_art')],
+        [InlineKeyboardButton("🔙 Вернуться в меню", callback_data='back_to_menu')]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
 def create_main_menu_keyboard() -> InlineKeyboardMarkup:
     """Create main menu keyboard."""
     logger.info("Creating main menu keyboard...")
@@ -15,6 +26,28 @@ def create_main_menu_keyboard() -> InlineKeyboardMarkup:
     markup = InlineKeyboardMarkup(keyboard)
     logger.info(f"Created main menu keyboard with buttons: {[btn.text for row in keyboard for btn in row]}")
     return markup
+
+def create_audience_examples_keyboard() -> InlineKeyboardMarkup:
+    """Create keyboard with audience examples."""
+    keyboard = [
+        [InlineKeyboardButton("👔 Предприниматели", callback_data='audience_entrepreneurs')],
+        [InlineKeyboardButton("💼 Фрилансеры", callback_data='audience_freelancers')],
+        [InlineKeyboardButton("📱 Блогеры", callback_data='audience_bloggers')],
+        [InlineKeyboardButton("👥 Начинающие специалисты", callback_data='audience_beginners')],
+        [InlineKeyboardButton("🔙 Вернуться в меню", callback_data='back_to_menu')]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+def create_monetization_examples_keyboard() -> InlineKeyboardMarkup:
+    """Create keyboard with monetization examples."""
+    keyboard = [
+        [InlineKeyboardButton("📚 Инфопродукты", callback_data='monetization_info')],
+        [InlineKeyboardButton("👨‍🏫 Консультации", callback_data='monetization_consult')],
+        [InlineKeyboardButton("🎯 Реклама", callback_data='monetization_ads')],
+        [InlineKeyboardButton("💰 Партнерские программы", callback_data='monetization_partner')],
+        [InlineKeyboardButton("🔙 Вернуться в меню", callback_data='back_to_menu')]
+    ]
+    return InlineKeyboardMarkup(keyboard)
 
 def create_subscription_keyboard() -> InlineKeyboardMarkup:
     """Create keyboard with subscription button."""
