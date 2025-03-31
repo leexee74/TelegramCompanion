@@ -1,61 +1,100 @@
-# GPT-4 Telegram Bot for Russian Social Media Content
+# Контент-Бот на основе GPT-4 для Telegram
 
-A sophisticated Telegram bot leveraging GPT-4 to generate dynamic Russian-language social media content with intelligent post creation and adaptive user interaction capabilities.
+Продвинутый Telegram-бот, использующий GPT-4 для генерации динамического контента для Telegram-каналов на русском языке. Бот создает эффективные контент-планы, которые прогревают аудиторию к покупке, а также помогает переупаковывать продукты с учетом болей целевой аудитории.
 
-## Features
+## Основные функции
 
-- Dynamic content generation using GPT-4
-- Russian language interface
-- Content plan generation
-- Post customization based on user preferences
-- Interactive conversation flow
-- Monetization strategy integration
+- **Создание контент-плана**: Генерация последовательного 14-дневного плана публикаций, который постепенно прогревает аудиторию к продаже
+- **Индивидуальные посты**: Создание отдельных постов с учетом особенностей целевой аудитории и темы канала
+- **Переупаковка продукта**: Создание продающего описания товара/услуги/курса с учетом боли целевой аудитории
+- **Механизм подписки**: Требует подписку на канал @expert_buyanov для доступа к полному функционалу
+- **Веб-интерфейс**: Мониторинг статуса бота через простой веб-интерфейс
+- **Автоматическое сохранение**: Все пользовательские настройки и данные сохраняются в базе данных
 
-## Technology Stack
+## Технический стек
 
 - Python 3.11+
-- python-telegram-bot
-- OpenAI GPT-4
-- Flask for web interface
-- PostgreSQL for data storage
-- Gunicorn for deployment
+- python-telegram-bot (для взаимодействия с Telegram API)
+- OpenAI GPT-4 (для генерации контента)
+- Flask (для веб-интерфейса)
+- PostgreSQL (для хранения данных пользователей)
+- SQLAlchemy (ORM для работы с базой данных)
+- Gunicorn (для запуска веб-сервера)
 
-## Environment Variables Required
+## Необходимые переменные окружения
 
 ```
-TELEGRAM_BOT_TOKEN=your_telegram_bot_token
-OPENAI_API_KEY=your_openai_api_key
-SESSION_SECRET=your_session_secret
-DATABASE_URL=your_database_url
+TELEGRAM_BOT_TOKEN=ваш_токен_телеграм_бота
+OPENAI_API_KEY=ваш_ключ_api_openai
+SESSION_SECRET=секретный_ключ_сессии
+DATABASE_URL=url_вашей_базы_данных
 ```
 
-## Setup Instructions
+## Инструкция по установке и запуску
 
-1. Clone the repository
-2. Install dependencies:
+1. Установите зависимости:
    ```bash
    pip install -r requirements.txt
    ```
-3. Set up environment variables
-4. Run the application:
+
+2. Настройте переменные окружения (добавьте их в .env файл или в переменные окружения сервера)
+
+3. Запустите сервисы (два варианта):
+
+   a. Запуск бота Telegram и веб-сервера одновременно:
    ```bash
-   gunicorn --bind 0.0.0.0:5000 wsgi:app
+   ./start.sh
    ```
 
-## Project Structure
+   b. Запуск только бота Telegram:
+   ```bash
+   python main.py
+   ```
+
+   c. Запуск только веб-сервера Flask:
+   ```bash
+   ./start_flask.sh
+   # или
+   gunicorn --bind 0.0.0.0:5000 --reuse-port --reload wsgi:app
+   ```
+
+## Структура проекта
 
 ```
-├── app.py              # Flask application setup
-├── database.py         # Database operations
-├── handlers.py         # Telegram message handlers
-├── main.py            # Telegram bot initialization
-├── prompts.py         # GPT-4 prompt templates
-├── utils.py           # Utility functions
-├── wsgi.py            # WSGI entry point
-└── templates/         # HTML templates
-    └── index.html     # Status page
+├── app.py              # Настройка Flask-приложения
+├── database.py         # Операции с базой данных
+├── handlers.py         # Обработчики сообщений Telegram
+├── main.py             # Инициализация бота Telegram
+├── models.py           # Модели данных SQLAlchemy
+├── prompts.py          # Шаблоны запросов для GPT-4
+├── utils.py            # Вспомогательные функции
+├── wsgi.py             # Точка входа WSGI для Flask
+├── flask_server.py     # Запуск изолированного Flask-сервера
+├── server.py           # Комбинированный запуск сервисов
+├── start.sh            # Скрипт для запуска бота
+├── start_flask.sh      # Скрипт для запуска веб-сервера
+└── templates/          # HTML шаблоны
+    └── index.html      # Страница статуса бота
 ```
 
-## License
+## Функциональные возможности
+
+1. **Контент-план**:
+   - Запрашивает тему канала, целевую аудиторию, метод монетизации и продукт
+   - Генерирует 14-дневный план публикаций
+   - Посты 1-11 постепенно прогревают аудиторию
+   - Посты 12-14 содержат продающее предложение
+
+2. **Переупаковка продукта**:
+   - Запрашивает информацию о целевой аудитории, их болях и продукте
+   - Создает продающее описание, фокусирующееся на выгодах для пользователя
+   - Подчеркивает ценность продукта в контексте решения проблем аудитории
+
+3. **Веб-мониторинг**:
+   - Отображает статус бота
+   - Показывает основные функциональные возможности
+   - Обеспечивает доступ к информации о требованиях для использования
+
+## Лицензия
 
 MIT License

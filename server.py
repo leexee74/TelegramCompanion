@@ -1,3 +1,6 @@
+import os
+import sys
+import logging
 import logging
 import os
 import sys
@@ -81,7 +84,6 @@ def start_bot_with_retry(max_retries=3, retry_delay=5):
 
     return True
 
-def run_flask_app():
     """Run Flask application with proper error handling."""
     try:
         logger.info("Starting Flask application...")
@@ -111,7 +113,6 @@ if __name__ == "__main__":
         logger.info("Telegram bot thread started")
 
         # Start Flask app in the main thread
-        run_flask_app()
 
     except Exception as e:
         logger.error(f"Error starting application: {e}", exc_info=True)

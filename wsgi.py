@@ -3,7 +3,7 @@ import os
 import sys
 import threading
 import time
-from main import run_telegram_bot
+# Removing import to avoid circular dependency that causes bot conflicts
 from app import app
 
 # Set up logging
@@ -30,23 +30,26 @@ def check_required_vars():
         return False
     return True
 
-def start_bot():
-    """Start Telegram bot in a separate thread."""
-    global bot_is_running, bot_thread
-
-    if bot_is_running:
-        logger.warning("Bot is already running")
-        return
-
-    try:
-        logger.info("Starting Telegram bot...")
-        bot_is_running = True
-        run_telegram_bot()
-        logger.info("Telegram bot started successfully")
-    except Exception as e:
-        logger.error(f"Failed to start Telegram bot: {e}", exc_info=True)
-        bot_is_running = False
-        raise
+# Commented out to prevent circular dependency
+# def start_bot():
+#     """Start Telegram bot in a separate thread."""
+#     global bot_is_running, bot_thread
+#
+#     if bot_is_running:
+#         logger.warning("Bot is already running")
+#         return
+#
+#     try:
+#         logger.info("Starting Telegram bot...")
+#         bot_is_running = True
+#         # Import run_telegram_bot directly to avoid circular import
+#         from main import run_telegram_bot
+#         run_telegram_bot()
+#         logger.info("Telegram bot started successfully")
+#     except Exception as e:
+#         logger.error(f"Failed to start Telegram bot: {e}", exc_info=True)
+#         bot_is_running = False
+#         raise
 
 # Check required environment variables
 if not check_required_vars():

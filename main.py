@@ -2,6 +2,10 @@ import logging
 import os
 import sys
 import time
+import fcntl
+import signal
+import atexit
+import subprocess
 from telegram.ext import (
     Updater, CommandHandler, MessageHandler, Filters,
     CallbackQueryHandler, ConversationHandler
@@ -14,7 +18,7 @@ from handlers import (
     SUBSCRIPTION_CHECK, MAIN_MENU, REPACKAGE_AUDIENCE, REPACKAGE_TOOL, REPACKAGE_RESULT,
     CONTENT_TOPIC, CONTENT_AUDIENCE, CONTENT_MONETIZATION, CONTENT_PRODUCT
 )
-from app import app  # Import app for wsgi compatibility
+# Removed import to fix circular dependency
 
 # Set up logging
 logging.basicConfig(
@@ -131,10 +135,90 @@ def run_telegram_bot():
         logger.error(f"Fatal error: {e}", exc_info=True)
         raise
 
-if __name__ == '__main__':
+# Функция для очистки работающих процессов и ресурсов при завершении
+def cleanup_resources():
+    global _updater
+    if _updater:
+        logger.info("Shutting down bot updater...")
+        try:
+            _updater.stop()
+            _updater = None
+        except Exception as e:
+            logger.error(f"Error stopping updater: {e}")
+
+    # Освобождаем файл блокировки
+    if 'lock_file' in globals():
+        try:
+            fcntl.flock(lock_file, fcntl.LOCK_UN)
+            lock_file.close()
+            logger.info("Lock file released")
+        except Exception as e:
+            logger.error(f"Error releasing lock file: {e}")
+
+# Обработчик сигналов для корректного завершения работы
+def signal_handler(signum, frame):
+    logger.info(f"Received signal {signum}, shutting down...")
+    cleanup_resources()
+    sys.exit(0)
+
+# Проверка на уже запущенные экземпляры бота и их завершение
+def kill_other_instances():
     try:
+        # Получаем PID текущего процесса
+        current_pid = os.getpid()
+        
+        # Находим все процессы Python, запускающие main.py
+        cmd = "ps aux | grep 'python.*main.py' | grep -v grep | awk '{print $2}'"
+        process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+        output, _ = process.communicate()
+        
+        # Преобразуем вывод в список PID
+        pids = [int(pid) for pid in output.decode().strip().split("\n") if pid]
+        
+        # Завершаем все процессы, кроме текущего
+        for pid in pids:
+            if pid != current_pid:
+                logger.info(f"Killing existing bot process with PID {pid}")
+                try:
+                    os.kill(pid, signal.SIGTERM)
+                    time.sleep(1)  # Даем процессу время на корректное завершение
+                except ProcessLookupError:
+                    pass  # Процесс уже завершен
+                except Exception as e:
+                    logger.error(f"Error killing process {pid}: {e}")
+        
+        # Удаляем старый файл блокировки, если он существует
+        if os.path.exists("telegram_bot.lock"):
+            try:
+                os.remove("telegram_bot.lock")
+                logger.info("Removed stale lock file")
+            except:
+                pass
+                
+        return True
+    except Exception as e:
+        logger.error(f"Error checking for other instances: {e}")
+        return False
+
+if __name__ == '__main__':
+    # Регистрируем обработчики сигналов
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+    atexit.register(cleanup_resources)
+    
+    # Завершаем другие экземпляры бота
+    kill_other_instances()
+    
+    # Создаем новый файл блокировки
+    lock_file = open("telegram_bot.lock", "w")
+    try:
+        # Пытаемся получить эксклюзивную блокировку
+        fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
         logger.info("Starting bot application...")
         run_telegram_bot()
+    except IOError:
+        logger.error("Another instance of the bot is already running!")
+        sys.exit(1)
     except Exception as e:
-        logger.error("Critical error in main:", exc_info=True)
+        logger.error(f"Critical error in main: {e}", exc_info=True)
         sys.exit(1)

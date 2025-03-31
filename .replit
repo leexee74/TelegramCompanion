@@ -96,7 +96,7 @@ task = "packager.installForAll"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "python server.py"
+args = "python flask_server.py"
 
 [[ports]]
 localPort = 5000
