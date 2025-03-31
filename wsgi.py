@@ -55,12 +55,9 @@ if not check_required_vars():
 
 logger.info("All required environment variables are present")
 
-# Start Telegram bot in a separate thread when running with gunicorn
-if os.environ.get('SERVER_SOFTWARE', '').startswith('gunicorn'):
-    bot_thread = threading.Thread(target=start_bot)
-    bot_thread.daemon = True
-    bot_thread.start()
-    logger.info("Started Telegram bot thread in gunicorn environment")
+# NOTE: Bot is now started separately, not automatically when running web server
+# This prevents conflicts from multiple bot instances
+logger.info("Web server started without auto-starting Telegram bot to prevent conflicts")
 
 # This is the application variable that Gunicorn expects
 application = app

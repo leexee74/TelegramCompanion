@@ -1,16 +1,15 @@
 #!/bin/bash
 
 # Kill any existing python processes
-pkill -f "python server.py"
-pkill -f "python main.py"
-pkill -f "gunicorn"
+pkill -f "python server.py" || true
+pkill -f "python main.py" || true
+pkill -f "gunicorn" || true
 
-# Start the application with gunicorn
-exec gunicorn --bind 0.0.0.0:5000 \
-    --worker-class=sync \
-    --workers=1 \
-    --timeout 120 \
-    --reload \
-    --access-logfile - \
-    --error-logfile - \
-    wsgi:app
+# Wait for processes to terminate
+sleep 2
+
+# Clear existing log files
+> telegram_bot.log
+
+# Start the bot directly
+exec python main.py

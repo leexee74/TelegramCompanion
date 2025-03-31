@@ -14,6 +14,7 @@ from handlers import (
     SUBSCRIPTION_CHECK, MAIN_MENU, REPACKAGE_AUDIENCE, REPACKAGE_TOOL, REPACKAGE_RESULT,
     CONTENT_TOPIC, CONTENT_AUDIENCE, CONTENT_MONETIZATION, CONTENT_PRODUCT
 )
+from app import app  # Import app for wsgi compatibility
 
 # Set up logging
 logging.basicConfig(
